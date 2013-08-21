@@ -161,9 +161,9 @@ public class Memberships implements Action {
               try {
                 if (MyPlacesUtil.avatarsEnabled() && tool.getDoSendAvatar()) {
                   String image = null;
-                  if (MyPlacesUtil.displayAvatar(user.getId())) {
+                  /*if (MyPlacesUtil.displayAvatar(user.getId())) {
                     image = MyPlacesUtil.getAvatarImage(user.getId());
-                  }
+                  }*/
                   if (image != null) {
                     member = member.append("      <user_image>").append(b2Context.getServerUrl()).append(image).append("</user_image>\n");
                   } else {

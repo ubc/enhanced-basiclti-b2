@@ -213,7 +213,7 @@ public class Controller extends HttpServlet {
     OAuthValidator validator = new SimpleOAuthValidator();
     OAuthMessage message = OAuthServlet.getMessage(this.b2Context.getRequest(), null);
     try {
-      message.validateMessage(oAuthAccessor, validator);
+      validator.validateMessage(message, oAuthAccessor);
     } catch (Exception e) {
       this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
       ok = false;
