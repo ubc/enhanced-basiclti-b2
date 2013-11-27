@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="oauth-provider-20100527">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/artifacts-23/filestore/net.oauth.core/oauth-provider/20100527/jar/165bfc97e63e5af8e052a47f4dee832ce06bf7d7/oauth-provider-20100527.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/artifacts-23/filestore/net.oauth.core/oauth-provider/20100527/source/6bc662aa46348458db50328cd2f99661044f0c5c/oauth-provider-20100527-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

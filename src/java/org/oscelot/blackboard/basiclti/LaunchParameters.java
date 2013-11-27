@@ -58,6 +58,8 @@ import blackboard.platform.session.BbSession;
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import java.util.Collections;
 
+import ca.ubc.ctlt.encryption.*;
+
 
 public class LaunchParameters {
 
@@ -83,7 +85,10 @@ public class LaunchParameters {
     }
 
     Properties props = new Properties();
-    props.setProperty("lti_message_type", Constants.LTI_MESSAGE_TYPE);
+//    Properties scramProps = new Properties();
+    Properties ecryptProps = new Properties();
+
+      props.setProperty("lti_message_type", Constants.LTI_MESSAGE_TYPE);
     props.setProperty("lti_version", Constants.LTI_VERSION);
 
 // User parameters
@@ -116,6 +121,8 @@ public class LaunchParameters {
     } catch (Exception e) {
     }
 
+//      System.out.println("User ID");
+
     if (tool.getDoSendUsername()) {
       props.setProperty("lis_person_name_given", user.getGivenName());
       props.setProperty("lis_person_name_family", user.getFamilyName());
@@ -133,6 +140,7 @@ public class LaunchParameters {
       props.setProperty("lis_person_sourcedid", user.getBatchUid());
     }
 
+//      System.out.println("Username, Email");
 // Context
     String customParameters = "";
     String domain = b2Context.getRequest().getRequestURL().toString();
@@ -184,6 +192,9 @@ public class LaunchParameters {
         props.setProperty("lis_course_offering_sourcedid", course.getBatchUid());
         props.setProperty("lis_course_section_sourcedid", course.getBatchUid());
       }
+
+
+//        System.out.println("context and resource id");
 
       boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
       CourseMembership.Role role = Utils.getRole(context.getCourseMembership().getRole(), systemRolesOnly);
@@ -253,6 +264,8 @@ public class LaunchParameters {
       props.setProperty("ext_ims_lti_tool_setting_id", hashId);
       props.setProperty("ext_ims_lti_tool_setting_url", extensionUrl);
     }
+
+      System.out.println("memberships, LTI");
 
 // Consumer
     String css = tool.getLaunchCSS();
@@ -324,10 +337,22 @@ public class LaunchParameters {
     }
     props.setProperty("oauth_callback", Constants.OAUTH_CALLBACK);
 
+      System.out.println("oauth callback");
+
+
+      //injected code here to scramble oAuth props//
+      
+//      scramProps = (Properties) props.clone();
+      EncryptManager encrypt = new EncryptManager();
+      ecryptProps =  encrypt.encrypt(props);
+
+      //end injection
+
     if (launchUrl == null) {
       launchUrl = tool.getLaunchUrl();
     }
-    OAuthMessage oAuthMessage = new OAuthMessage("POST", launchUrl, props.entrySet());
+    OAuthMessage oAuthMessage = new OAuthMessage("POST", launchUrl, ecryptProps.entrySet());
+      System.out.println("after change");
     String consumerKey = tool.getLaunchGUID();
     String secret = tool.getLaunchSecret();
     OAuthConsumer oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);
