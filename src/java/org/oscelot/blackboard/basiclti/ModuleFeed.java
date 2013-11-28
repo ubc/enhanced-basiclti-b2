@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import blackboard.base.InitializationException;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.filter.ElementFilter;
@@ -110,6 +111,15 @@ public class ModuleFeed {
       String key = this.b2Context.getContext().getUser().getUserName() + "-" + this.tool.getId();
       String data = stringCache.getString(key);
       if (data == null) {
+        // convert BB variables @X@ into values before reading from URL
+        BbSession bbSession = this.b2Context.getContext().getSession();
+        try {
+          contentUrl =  bbSession.encodeTemplateUrl(b2Context.getRequest(), contentUrl );
+        } catch (PersistenceException e) {
+          Logger.getLogger(ModuleFeed.class.getName()).log(Level.SEVERE, null, e);
+        } catch (InitializationException e) {
+          Logger.getLogger(ModuleFeed.class.getName()).log(Level.SEVERE, null, e);
+        }
         data = readUrlAsString(contentUrl);
         stringCache.putString(key, data);
         this.date = Calendar.getInstance().getTime();
