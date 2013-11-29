@@ -54,6 +54,9 @@ import blackboard.data.gradebook.Lineitem;
 import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
 
+import ca.ubc.ctlt.encryption.EncryptManager;
+import ca.ubc.ctlt.encryption.Encryption;
+
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import org.oscelot.blackboard.basiclti.Tool;
 import org.oscelot.blackboard.basiclti.Utils;
@@ -92,6 +95,11 @@ public class Outcomes implements Action {
     if (ok) {
       bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
       String userId = serviceData.get(3);
+      Encryption encryptInstance = new Encryption();
+      try {
+		userId = encryptInstance.decrypt(userId);
+	} catch (Exception e1) {
+	}
       try {
         UserDbLoader userdbloader = (UserDbLoader)bbPm.getLoader(UserDbLoader.TYPE);
         String userIdType = tool.getUserIdType();

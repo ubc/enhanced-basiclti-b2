@@ -121,8 +121,6 @@ public class LaunchParameters {
     } catch (Exception e) {
     }
 
-//      System.out.println("User ID");
-
     if (tool.getDoSendUsername()) {
       props.setProperty("lis_person_name_given", user.getGivenName());
       props.setProperty("lis_person_name_family", user.getFamilyName());
@@ -140,7 +138,6 @@ public class LaunchParameters {
       props.setProperty("lis_person_sourcedid", user.getBatchUid());
     }
 
-//      System.out.println("Username, Email");
 // Context
     String customParameters = "";
     String domain = b2Context.getRequest().getRequestURL().toString();
@@ -192,9 +189,6 @@ public class LaunchParameters {
         props.setProperty("lis_course_offering_sourcedid", course.getBatchUid());
         props.setProperty("lis_course_section_sourcedid", course.getBatchUid());
       }
-
-
-//        System.out.println("context and resource id");
 
       boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
       CourseMembership.Role role = Utils.getRole(context.getCourseMembership().getRole(), systemRolesOnly);
@@ -264,8 +258,6 @@ public class LaunchParameters {
       props.setProperty("ext_ims_lti_tool_setting_id", hashId);
       props.setProperty("ext_ims_lti_tool_setting_url", extensionUrl);
     }
-
-      System.out.println("memberships, LTI");
 
 // Consumer
     String css = tool.getLaunchCSS();
@@ -337,22 +329,19 @@ public class LaunchParameters {
     }
     props.setProperty("oauth_callback", Constants.OAUTH_CALLBACK);
 
-      System.out.println("oauth callback");
-
-
-      //injected code here to scramble oAuth props//
-      
-//      scramProps = (Properties) props.clone();
-      EncryptManager encrypt = new EncryptManager();
-      ecryptProps =  encrypt.encrypt(props);
-
-      //end injection
-
     if (launchUrl == null) {
       launchUrl = tool.getLaunchUrl();
     }
-    OAuthMessage oAuthMessage = new OAuthMessage("POST", launchUrl, ecryptProps.entrySet());
-      System.out.println("after change");
+    //encrypt data when option is checked
+    OAuthMessage oAuthMessage = null;
+    if (tool.isEncryptData()) {
+	    EncryptManager encrypt = new EncryptManager();
+	    ecryptProps =  encrypt.encrypt(props);
+	    oAuthMessage = new OAuthMessage("POST", launchUrl, ecryptProps.entrySet());
+    }
+    else {
+    	oAuthMessage = new OAuthMessage("POST", launchUrl, props.entrySet());
+    }
     String consumerKey = tool.getLaunchGUID();
     String secret = tool.getLaunchSecret();
     OAuthConsumer oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);

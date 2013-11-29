@@ -124,6 +124,7 @@ public class Constants {
   public static final String TOOL_COURSETOOL = "coursetool";
   public static final String TOOL_MODULE = "mid";
   public static final String TOOL_COURSEID = "courseid";
+  public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
 
 // Cache setting parameter names
   public static final String CACHE_AGE_PARAMETER = "cacheage";

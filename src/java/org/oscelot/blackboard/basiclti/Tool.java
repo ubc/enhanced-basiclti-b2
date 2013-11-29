@@ -412,6 +412,10 @@ public class Tool {
 
   }
 
+  public boolean isEncryptData() {
+	  return this.getToolSetting(Constants.TOOL_ENCRYPT_DATA).equals("true");
+  }
+  
   public String getOpenIn() {
 
     return this.getToolSetting(Constants.TOOL_OPEN_IN, Constants.DATA_FRAME);
