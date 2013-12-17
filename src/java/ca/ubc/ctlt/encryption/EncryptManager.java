@@ -27,7 +27,7 @@ public class EncryptManager {
 			propObj.setProperty("lis_person_name_given", encryptInstance.encrypt(nameGiven));
 			propObj.setProperty("lis_person_name_family", encryptInstance.encrypt(nameFamily));
 			propObj.setProperty("lis_person_name_full", encryptInstance.encrypt(nameFull));
-			propObj.setProperty("lis_person_contact_email_primary", encryptInstance.encrypt(emailPrimary[0]) + (emailPrimary.length > 1 ? emailPrimary[1] : ""));
+			propObj.setProperty("lis_person_contact_email_primary", emailPrimary.length > 1 ? (encryptInstance.encrypt(emailPrimary[0]) + emailPrimary[1]) : "");
 			propObj.setProperty("lis_person_sourcedid", encryptInstance.encrypt(sourceDID));
 		} catch (Exception e) {
 		}

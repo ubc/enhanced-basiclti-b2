@@ -182,7 +182,7 @@ public class Memberships implements Action {
             	  encFamilyName = encryptInstance.encrypt(encFamilyName);
             	  encFullname = encryptInstance.encrypt(encFullname);
             	  String[] encEmailArr = encEmail.split("(?=@)");
-            	  encEmail = encryptInstance.encrypt(encEmailArr[0]) + (encEmailArr.length > 1 ? encEmailArr[1] : "");
+            	  encEmail = encEmailArr.length > 1 ? (encryptInstance.encrypt(encEmailArr[0]) + encEmailArr[1]) : "";
               }
               member = member.append("      <user_id>").append(encUserId).append("</user_id>\n");
               try {
