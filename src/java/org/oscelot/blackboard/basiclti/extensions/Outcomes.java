@@ -55,6 +55,8 @@ import blackboard.data.gradebook.Lineitem;
 import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
 
+import ca.ubc.ctlt.encryption.Encryption;
+
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import org.oscelot.blackboard.lti.Tool;
 import org.oscelot.blackboard.lti.Utils;
@@ -70,7 +72,7 @@ public class Outcomes implements Action {
      Response response) {
 
     boolean ok = true;
-
+    Encryption encryptInstance = new Encryption();
     String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
     boolean isV90 = (version[0].equals("9") && version[1].equals("0"));
 
@@ -92,6 +94,13 @@ public class Outcomes implements Action {
     if (ok) {
       bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
       String userId = serviceData.get(3);
+   // decrypt the user if necessary
+   		if (tool.isEncryptData()) {
+   			try {
+   				userId = encryptInstance.decrypt(userId);
+   			} catch (Exception e1) {
+   			}
+   		}
       try {
         UserDbLoader userdbloader = (UserDbLoader)bbPm.getLoader(UserDbLoader.TYPE);
         String userIdType = tool.getUserIdType();
@@ -250,11 +259,19 @@ public class Outcomes implements Action {
     response.setCodeMinor(b2Context.getResourceString(codeMinor));
     if (ok) {
       if (value != null) {
+    	// re-encrypt the user
+      	String encUser = user.getBatchUid();
+  		if (tool.isEncryptData()) {
+  			try {
+  				encUser = encryptInstance.encrypt(encUser);
+  			} catch (Exception e) {
+  			}
+  		}
         StringBuilder xml = new StringBuilder();
         xml.append("  <result>\n");
         xml.append("    <sourcedid>").append(sourcedid).append("</sourcedid>\n");
         if (tool.getDoSendUserSourcedid()) {
-          xml.append("    <personsourcedid>").append(user.getBatchUid()).append("</personsourcedid>\n");
+          xml.append("    <personsourcedid>").append(encUser).append("</personsourcedid>\n");
         }
         if (date.length() > 0) {
           xml.append("    <date>").append(date).append("</date>\n");

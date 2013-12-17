@@ -69,7 +69,8 @@ dependencies {
           'commons-httpclient:commons-httpclient:3.1',
           'org.jdom:jdom:1.1.3',
           'net.sf.json-lib:json-lib:2.4:jdk15',
-          'net.oauth.core:oauth-provider:20100527'
+          'net.oauth.core:oauth-provider:20100527',
+          'com.google.code.gson:gson:2.2.4'
   runtime "com.spvsoftwareproducts:b2context:1.3.00",
           'commons-httpclient:commons-httpclient:3.1',
           'org.jdom:jdom:1.1.3',

@@ -1405,14 +1405,11 @@ System.err.println(mapToString(params));
 
     boolean usingSystem = false;
     boolean usingUploaded = false;
-    try {
       Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
       usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
       if (!usingSystem) {
         usingUploaded = MyPlacesUtil.getAvatarType().equals(AvatarType.user) && (userData.get(Setting.AVATAR_SHOW_USER.getKey())).equalsIgnoreCase("true");
       }
-    } catch (PersistenceException e) {
-    }
 
     return usingSystem || usingUploaded;
 

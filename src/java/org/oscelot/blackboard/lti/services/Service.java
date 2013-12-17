@@ -253,7 +253,8 @@ public abstract class Service {
     oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);
     oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     try {
-      this.message.validateMessage(oAuthAccessor, validator);
+    	validator.validateMessage(this.message, oAuthAccessor);
+      //this.message.validateMessage(oAuthAccessor, validator);
       ok = true;
     } catch (URISyntaxException e) {
     } catch (OAuthException e) {

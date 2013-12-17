@@ -240,7 +240,7 @@ public class Controller extends HttpServlet {
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     OAuthValidator validator = new SimpleOAuthValidator();
     try {
-      message.validateMessage(oAuthAccessor, validator);
+    	validator.validateMessage(message, oAuthAccessor);
     } catch (IOException e) {
       Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
       ok = false;

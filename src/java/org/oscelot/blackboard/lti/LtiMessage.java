@@ -64,6 +64,8 @@ import blackboard.platform.context.Context;
 import blackboard.platform.institutionalhierarchy.service.Node;
 import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
 
+import ca.ubc.ctlt.encryption.EncryptManager;
+
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
 
@@ -285,7 +287,18 @@ public class LtiMessage {
   public void signParameters(String url, String consumerKey, String secret) {
 
     this.props.setProperty("oauth_callback", Constants.OAUTH_CALLBACK);
-    OAuthMessage oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
+    
+    //encrypt data when option is checked
+    OAuthMessage oAuthMessage = null;
+    Properties ecryptProps = new Properties();
+    if (this.tool.isEncryptData()) {
+      EncryptManager encrypt = new EncryptManager();
+      ecryptProps =  encrypt.encrypt(props);
+      oAuthMessage = new OAuthMessage("POST", url, ecryptProps.entrySet());
+    }
+    else {
+      oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
+    }
     OAuthConsumer oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     try {
