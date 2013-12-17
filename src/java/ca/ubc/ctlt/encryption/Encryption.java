@@ -24,7 +24,7 @@ public class Encryption {
     private final byte[] keyValue =
             new byte[] { '1', '4', '3', 'B', '3', '5', 't',
                     '5', '3', 'C', 'r','E', 'T', '$', '#', '6' };
-// 143B35t53CrET$#6
+
     public String encrypt(String Data) throws Exception {
         Key key = generateKey();
         Cipher c = Cipher.getInstance(ALGO);

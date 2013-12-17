@@ -29,39 +29,35 @@
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
-import java.util.List;
-
-import java.util.Calendar;
-import java.util.TimeZone;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+import java.util.TimeZone;
 
+import org.oscelot.blackboard.basiclti.Constants;
 import org.oscelot.blackboard.basiclti.Gradebook;
 import org.oscelot.blackboard.basiclti.Gradebook_v90;
+import org.oscelot.blackboard.basiclti.Tool;
+import org.oscelot.blackboard.basiclti.Utils;
 
-import blackboard.platform.persistence.PersistenceServiceFactory;
-import blackboard.persist.BbPersistenceManager;
-import blackboard.persist.KeyNotFoundException;
-import blackboard.persist.PersistenceException;
-import blackboard.persist.user.UserDbLoader;
-import blackboard.persist.user.UserSearch;
-import blackboard.persist.user.UserSearch.SearchKey;
-import blackboard.persist.user.UserSearch.SearchParameter;
-import blackboard.persist.SearchOperator;
-import blackboard.data.user.User;
-import blackboard.persist.course.CourseMembershipDbLoader;
 import blackboard.data.course.CourseMembership;
 import blackboard.data.gradebook.Lineitem;
 import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
-
-import ca.ubc.ctlt.encryption.EncryptManager;
+import blackboard.data.user.User;
+import blackboard.persist.BbPersistenceManager;
+import blackboard.persist.KeyNotFoundException;
+import blackboard.persist.PersistenceException;
+import blackboard.persist.SearchOperator;
+import blackboard.persist.course.CourseMembershipDbLoader;
+import blackboard.persist.user.UserDbLoader;
+import blackboard.persist.user.UserSearch;
+import blackboard.persist.user.UserSearch.SearchKey;
+import blackboard.persist.user.UserSearch.SearchParameter;
+import blackboard.platform.persistence.PersistenceServiceFactory;
 import ca.ubc.ctlt.encryption.Encryption;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Utils;
-
-import org.oscelot.blackboard.basiclti.Constants;
 
 
 public class Outcomes implements Action {
@@ -73,7 +69,7 @@ public class Outcomes implements Action {
      Response response) {
 
     boolean ok = true;
-
+    Encryption encryptInstance = new Encryption();
     String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
     boolean isV90 = (version[0].equals("9") && version[1].equals("0"));
 
@@ -95,11 +91,13 @@ public class Outcomes implements Action {
     if (ok) {
       bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
       String userId = serviceData.get(3);
-      Encryption encryptInstance = new Encryption();
-      try {
-		userId = encryptInstance.decrypt(userId);
-	} catch (Exception e1) {
-	}
+      // decrypt the user if necessary
+		if (tool.isEncryptData()) {
+			try {
+				userId = encryptInstance.decrypt(userId);
+			} catch (Exception e1) {
+			}
+		}
       try {
         UserDbLoader userdbloader = (UserDbLoader)bbPm.getLoader(UserDbLoader.TYPE);
         String userIdType = tool.getUserIdType();
@@ -254,15 +252,22 @@ public class Outcomes implements Action {
     } else {
       description = null;
     }
-
     response.setCodeMinor(b2Context.getResourceString(codeMinor));
     if (ok) {
       if (value != null) {
+    	// re-encrypt the user
+    	String encUser = user.getBatchUid();
+		if (tool.isEncryptData()) {
+			try {
+				encUser = encryptInstance.encrypt(encUser);
+			} catch (Exception e) {
+			}
+		}
         StringBuilder xml = new StringBuilder();
         xml.append("  <result>\n");
         xml.append("    <sourcedid>").append(sourcedid).append("</sourcedid>\n");
         if (tool.getDoSendUserSourcedid()) {
-          xml.append("    <personsourcedid>").append(user.getBatchUid()).append("</personsourcedid>\n");
+          xml.append("    <personsourcedid>").append(encUser).append("</personsourcedid>\n");
         }
         if (date.length() > 0) {
           xml.append("    <date>").append(date).append("</date>\n");

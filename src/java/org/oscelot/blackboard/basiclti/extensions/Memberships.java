@@ -159,7 +159,7 @@ public class Memberships implements Action {
               } else {
                 userId = user.getBatchUid();
               }
-              // encrypt data is option is selected
+              // encrypt data if option is selected
               String encUserId = userId;
               String encBatchUid = user.getBatchUid();
               String encEmail = user.getEmailAddress();
