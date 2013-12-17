@@ -39,29 +39,37 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
-        import="blackboard.servlet.tags.ngui.ContextMenuTag,
+        import="java.util.List,
+                java.util.ArrayList,
+                blackboard.servlet.tags.ngui.ContextMenuTag,
+                blackboard.persist.Id,
+                blackboard.persist.KeyNotFoundException,
+                blackboard.persist.PersistenceException,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.ToolList,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.ToolList,
                 org.oscelot.blackboard.utils.StringCache,
                 org.oscelot.blackboard.utils.StringCacheFile"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:genericPage title="${bundle['page.system.tools.title']}" entitlement="system.admin.VIEW">
+<bbNG:genericPage title="${bundle['page.system.tools.title']}" onLoad="doOnLoad()">
 <%
   B2Context b2Context = new B2Context(request);
+  String subTitle = "";
   ToolList toolList = new ToolList(b2Context);
+  List<Tool> tools = toolList.getList();
   String handle = "admin_main";
-  if (request.getParameter("config") != null) {
+  if (request.getParameter(Constants.PAGE_PARAMETER_NAME) != null) {
     handle = "admin_plugin_manage";
   }
   String cancelUrl = b2Context.getNavigationItem(handle).getHref();
-  String version = B2Context.getVersionNumber("");
-  boolean isv90 = version.compareTo("9.1.") < 0;
+  boolean isv90 = !B2Context.getIsVersion(9, 1, 0);
   boolean enabledMashup = b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   if (!isv90) {
     Utils.checkVTBEMashup(b2Context, enabledMashup);  // Check mashup option is in place
@@ -70,11 +78,13 @@
   StringCache stringCache = StringCacheFile.getInstance(
      b2Context.getSetting(Constants.CACHE_AGE_PARAMETER),
      b2Context.getSetting(Constants.CACHE_CAPACITY_PARAMETER));
-  boolean hasCache = stringCache.getCapacity() > 0;
+  boolean hasCache = (stringCache.getCapacity() > 0);
   pageContext.setAttribute("size", stringCache.getSize());
 
   pageContext.setAttribute("itemSeparator", ContextMenuTag.SEPARATOR);
+  pageContext.setAttribute("path", b2Context.getPath());
   pageContext.setAttribute("query", Utils.getQuery(request));
+  pageContext.setAttribute("list", "&" + Constants.PAGE_PARAMETER_NAME + "=" + Constants.ADMIN_PAGE);
   pageContext.setAttribute("bundle", b2Context.getResourceStrings());
   pageContext.setAttribute("imageFiles", Constants.IMAGE_FILE);
   pageContext.setAttribute("imageAlt", Constants.IMAGE_ALT_RESOURCE);
@@ -96,10 +106,13 @@
     pageContext.setAttribute("PublisherMenu", Constants.MENU_TEXTBOOK);
   }
   pageContext.setAttribute("xmlTitle", b2Context.getResourceString("page.system.tools.action.xml"));
+  pageContext.setAttribute("subTitle", subTitle);
   String reorderingUrl = "reordertools";
 %>
   <bbNG:jsBlock>
 <script type="text/javascript">
+function doOnLoad() {
+}
 function doAction(value) {
   document.frmTools.action.value = value;
   document.frmTools.submit();
@@ -115,7 +128,7 @@ function doDelete() {
     <bbNG:breadcrumbBar environment="SYS_ADMIN" navItem="admin_plugin_manage">
       <bbNG:breadcrumb href="tools.jsp" title="${bundle['plugin.name']}" />
     </bbNG:breadcrumbBar>
-    <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['plugin.name']}"/>
+    <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['plugin.name']}${subTitle}" />
     <bbNG:actionControlBar>
       <bbNG:actionButton title="${bundle['page.system.tools.button.settings']}" url="settings.jsp?${query}" primary="true" />
       <bbNG:actionMenu title="${bundle['page.system.tools.button.default']}">
@@ -124,6 +137,7 @@ function doDelete() {
       </bbNG:actionMenu>
       <bbNG:actionButton title="${bundle['page.system.tools.button.add']}" url="tool.jsp?${query}" primary="true" />
       <bbNG:actionButton title="${bundle['page.system.tools.button.domains']}" url="domains.jsp?${query}" primary="false" />
+      <bbNG:actionButton title="${bundle['page.system.tools.button.services']}" url="services.jsp?${query}" primary="false" />
 <%
   if (hasCache) {
 %>
@@ -135,7 +149,7 @@ function doDelete() {
   </bbNG:pageHeader>
   <bbNG:form name="frmTools" method="post" action="toolsaction?${query}">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
-    <bbNG:inventoryList collection="<%=toolList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.basiclti.Tool"
+    <bbNG:inventoryList collection="<%=tools%>" objectVar="tool" className="org.oscelot.blackboard.lti.Tool"
        description="${bundle['page.system.tools.description']}" reorderable="true" reorderType="${bundle['page.system.tools.reordertype']}"
        reorderingUrl="<%=reorderingUrl%>"
        itemIdAccessor="getId" itemNameAccessor="getName" showAll="false" emptyMsg="${bundle['page.system.tools.empty']}">
@@ -154,7 +168,7 @@ function doDelete() {
         <bbNG:listActionItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete('${DoDelete}');" />
       </bbNG:listActionBar>
 <%
- } else {
+  }
 %>
       <bbNG:listActionBar>
         <bbNG:listActionMenu title="${bundle['page.system.tools.action.status']}">
@@ -178,13 +192,12 @@ function doDelete() {
         </bbNG:listActionMenu>
         <bbNG:listActionItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete('${DoDelete}');" />
       </bbNG:listActionBar>
-<%
- }
-%>
 <bbNG:jspBlock>
 <%
-    pageContext.setAttribute("id", Constants.TOOL_ID + "=" + tool.getId());
-    pageContext.setAttribute("alt", Constants.TOOL_PARAMETER_PREFIX + "." + tool.getIsEnabled());
+  pageContext.setAttribute("id", Constants.TOOL_ID + "=" + tool.getId());
+  pageContext.setAttribute("alt", Constants.TOOL_PARAMETER_PREFIX + "." + tool.getIsEnabled());
+  String deleteOption = b2Context.getResourceString("page.system.tools.action.delete");
+  pageContext.setAttribute("deleteOption", deleteOption);
 %>
 </bbNG:jspBlock>
       <bbNG:listCheckboxElement name="<%=Constants.TOOL_ID%>" value="${tool.id}" />
@@ -192,40 +205,40 @@ function doDelete() {
         <img src="${imageFiles[tool.isEnabled]}" alt="${bundle[imageAlt[alt]]}" title="${bundle[imageAlt[alt]]}" />
       </bbNG:listElement>
 <%
-    boolean enabled = tool.getIsEnabled().equals(Constants.DATA_TRUE);
-    if (enabled) {
-      pageContext.setAttribute("actionTitle", b2Context.getResourceString("page.system.tools.action.disable"));
-      pageContext.setAttribute("statusAction", Constants.ACTION_DISABLE);
-      if (tool.getHasCourseTool().equals(Constants.DATA_TRUE)) {
-        pageContext.setAttribute("toolTitle", b2Context.getResourceString("page.system.tools.action.notool"));
-        pageContext.setAttribute("toolAction", Constants.ACTION_NOTOOL);
-      } else {
-        pageContext.setAttribute("toolTitle", b2Context.getResourceString("page.system.tools.action.tool"));
-        pageContext.setAttribute("toolAction", Constants.ACTION_TOOL);
-      }
+  boolean enabled = tool.getIsEnabled().equals(Constants.DATA_TRUE);
+  if (enabled) {
+    pageContext.setAttribute("actionTitle", b2Context.getResourceString("page.system.tools.action.disable"));
+    pageContext.setAttribute("statusAction", Constants.ACTION_DISABLE);
+    if (tool.getHasCourseTool().equals(Constants.DATA_TRUE)) {
+      pageContext.setAttribute("toolTitle", b2Context.getResourceString("page.system.tools.action.notool"));
+      pageContext.setAttribute("toolAction", Constants.ACTION_NOTOOL);
     } else {
-      pageContext.setAttribute("actionTitle", b2Context.getResourceString("page.system.tools.action.enable"));
-      pageContext.setAttribute("statusAction", Constants.ACTION_ENABLE);
+      pageContext.setAttribute("toolTitle", b2Context.getResourceString("page.system.tools.action.tool"));
+      pageContext.setAttribute("toolAction", Constants.ACTION_TOOL);
     }
-    pageContext.setAttribute("openinLabel", b2Context.getResourceString("page.system.launch.openin." + tool.getOpenIn()));
+  } else {
+    pageContext.setAttribute("actionTitle", b2Context.getResourceString("page.system.tools.action.enable"));
+    pageContext.setAttribute("statusAction", Constants.ACTION_ENABLE);
+  }
+  pageContext.setAttribute("openinLabel", b2Context.getResourceString("page.system.launch.openin." + tool.getOpenIn()));
 
-    if (!isv90) {
+  if (!isv90) {
 %>
       <bbNG:listElement isRowHeader="false" label="${bundle['page.system.tools.menuitem.label']}" name="menuitem">
 <%
-      if (tool.getHasMenuItem()) {
+    if (tool.getHasMenuItem()) {
 %>
         ${tool.menuItem.menuLabel}
 <%
-      } else {
+    } else {
 %>
         <img src="${imageFiles["false"]}" alt="${bundle[imageAlt["false"]]}" title="${bundle[imageAlt["false"]]}" />
 <%
-      }
+    }
 %>
       </bbNG:listElement>
 <%
-    }
+  }
 %>
       <bbNG:listElement isRowHeader="false" label="${bundle['page.system.tools.coursetool.label']}" name="coursetool">
         <img src="${imageFiles[tool.hasCourseTool]}" alt="${bundle[imageAlt[tool.hasCourseTool]]}" title="${bundle[imageAlt[tool.hasCourseTool]]}" />
@@ -233,7 +246,21 @@ function doDelete() {
       <bbNG:listElement isRowHeader="true" label="${bundle['page.system.tools.name.label']}" name="name">
         <span title="${tool.url}">${tool.name}</span>
 <%
-    if (enabled) {
+  if (enabled) {
+    if (tool.getConfig().equals(Constants.DATA_TRUE)) {
+%>
+        <bbNG:listContextMenu order="edit,data,launch,${itemSeparator},status,tool,xml,${itemSeparator},delete,${itemSeparator},configure">
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="edit" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.data']}" url="data.jsp?${id}&${query}" id="data" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.launch']}" url="launch.jsp?${id}&${query}" id="launch" />
+          <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
+          <bbNG:contextMenuItem title="${toolTitle}" url="JavaScript: doAction('${toolAction}');" id="tool" />
+          <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}" target="_blank" id="xml" />
+          <bbNG:contextMenuItem title="${deleteOption}" url="JavaScript: doDelete();" id="delete" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="../config.jsp?${id}${list}&${query}" target="${target}" id="config" />
+        </bbNG:listContextMenu>
+<%
+    } else {
 %>
         <bbNG:listContextMenu order="edit,data,launch,${itemSeparator},status,tool,xml,${itemSeparator},delete">
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="edit" />
@@ -242,10 +269,23 @@ function doDelete() {
           <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
           <bbNG:contextMenuItem title="${toolTitle}" url="JavaScript: doAction('${toolAction}');" id="tool" />
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}" target="_blank" id="xml" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
+          <bbNG:contextMenuItem title="${deleteOption}" url="JavaScript: doDelete();" id="delete" />
         </bbNG:listContextMenu>
 <%
-    } else {
+    }
+  } else if (tool.getConfig().equals(Constants.DATA_TRUE)) {
+%>
+        <bbNG:listContextMenu order="edit,data,launch,${itemSeparator},status,xml,${itemSeparator},delete,${itemSeparator},configure">
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="edit" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.data']}" url="data.jsp?${id}&${query}" id="data" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.launch']}" url="launch.jsp?${id}&${query}" id="launch" />
+          <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
+          <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}" target="_blank" id="xml" />
+          <bbNG:contextMenuItem title="${deleteOption}" url="JavaScript: doDelete();" id="delete" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="../config.jsp?${id}${list}&${query}" target="${target}" id="config" />
+        </bbNG:listContextMenu>
+<%
+  } else {
 %>
         <bbNG:listContextMenu order="edit,data,launch,${itemSeparator},status,xml,${itemSeparator},delete">
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="edit" />
@@ -253,10 +293,10 @@ function doDelete() {
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.launch']}" url="launch.jsp?${id}&${query}" id="launch" />
           <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}" target="_blank" id="xml" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
+          <bbNG:contextMenuItem title="${deleteOption}" url="JavaScript: doDelete();" id="delete" />
         </bbNG:listContextMenu>
 <%
-    }
+  }
 %>
       </bbNG:listElement>
       <bbNG:listElement isRowHeader="false" label="${bundle['page.system.tools.contextid.label']}" name="contextid">
@@ -288,5 +328,6 @@ function doDelete() {
       </bbNG:listElement>
     </bbNG:inventoryList>
   </bbNG:form>
+  <br />
   <bbNG:okButton url="${cancelUrl}" />
 </bbNG:genericPage>

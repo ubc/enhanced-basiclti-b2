@@ -36,15 +36,16 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.Map,
                 java.util.HashMap,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:learningSystemPage title="${bundle['page.system.launch.title']}">

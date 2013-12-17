@@ -24,13 +24,14 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.ToolList"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.ToolList"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.domains.title']}" entitlement="system.admin.VIEW">
@@ -78,13 +79,14 @@
     <bbNG:actionControlBar>
       <bbNG:actionButton title="${bundle['page.system.domains.button.add']}" url="domain.jsp?${query}" primary="true" />
       <bbNG:actionButton title="${bundle['page.system.domains.button.tools']}" url="tools.jsp?${query}" primary="false" />
+      <bbNG:actionButton title="${bundle['page.system.tools.button.services']}" url="services.jsp?${query}" primary="false" />
     </bbNG:actionControlBar>
   </bbNG:pageHeader>
   <bbNG:form name="frmDomains" method="post" action="toolsaction?${query}">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
     <input type="hidden" name="<%=Constants.DOMAIN_PARAMETER_PREFIX%>" value="true" />
-    <bbNG:inventoryList collection="<%=domainList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.basiclti.Tool"
-       description="${bundle['page.system.tools.description']}" reorderable="true" reorderType="${bundle['page.system.domains.reordertype']}"
+    <bbNG:inventoryList collection="<%=domainList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.lti.Tool"
+       description="${bundle['page.system.domains.description']}" reorderable="true" reorderType="${bundle['page.system.domains.reordertype']}"
        reorderingUrl="<%=reorderingUrl%>"
        itemIdAccessor="getId" itemNameAccessor="getName" showAll="false" emptyMsg="${bundle['page.system.domains.empty']}">
       <bbNG:listActionBar>

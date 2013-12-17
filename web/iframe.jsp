@@ -36,12 +36,13 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Tool"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Tool"
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:learningSystemPage  title="${bundle['page.course.tool.title']}" onLoad="doAddFrame()">
@@ -78,7 +79,7 @@ function doAddFrame() {
   }
   var el = document.getElementById("frame");
   height = parseInt(height - el.offsetTop - 100) + "px";
-  el.innerHTML = '<iframe id="if" src="window.jsp?${query}" width="100%" height="' + height + '" frameborder="0"/>';
+  el.innerHTML = '<iframe id="if" src="window.jsp?${query}" width="100%" height="' + height + '" frameborder="0" />';
 }
 </script>
 </bbNG:jsBlock>

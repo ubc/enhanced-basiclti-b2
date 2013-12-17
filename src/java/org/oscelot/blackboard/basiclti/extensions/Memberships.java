@@ -26,6 +26,7 @@
       2.3.0  5-Nov-12  Added support to send group set details
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
@@ -50,13 +51,10 @@ import blackboard.persist.user.UserDbLoader;
 import blackboard.persist.PersistenceException;
 import blackboard.platform.user.MyPlacesUtil;
 
-import ca.ubc.ctlt.encryption.Encryption;
-
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Utils;
-
-import org.oscelot.blackboard.basiclti.Constants;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Utils;
+import org.oscelot.blackboard.lti.Constants;
 
 
 public class Memberships implements Action {
@@ -110,7 +108,7 @@ public class Memberships implements Action {
             List<GroupMembership> groupMemberships = groupMembershipLoader.loadByCourseId(b2Context.getContext().getCourseId());
             groupMembers = new HashMap<Id,List<Id>>();
             for (GroupMembership groupMembership : groupMemberships) {
-              List<Id> groupIds = null;
+              List<Id> groupIds;
               if (!groupMembers.containsKey(groupMembership.getCourseMembershipId())) {
                 groupIds = new ArrayList<Id>();
               } else {
@@ -141,8 +139,11 @@ public class Memberships implements Action {
               }
               if (isAvailable) {
                 role = Utils.getRole(courseMembership.getRole(), systemRolesOnly);
-                roles = Utils.getRoles(tool.getRole(role.getIdentifier()),
+                roles = Utils.getCRoles(tool.getRole(role.getIdentifier()),
                    tool.getSendAdministrator().equals(Constants.DATA_TRUE) && user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN));
+                if (tool.getSendAdministrator().equals(Constants.DATA_TRUE)) {
+                  roles = Utils.addAdminRole(roles, user);
+                }
                 isAvailable = ((roles.indexOf(Constants.ROLE_INSTRUCTOR) >= 0) || isVisible);
               }
             }
@@ -159,38 +160,13 @@ public class Memberships implements Action {
               } else {
                 userId = user.getBatchUid();
               }
-              // encrypt data if option is selected
-              String encUserId = userId;
-              String encBatchUid = user.getBatchUid();
-              String encEmail = user.getEmailAddress();
-              String encUserName = user.getGivenName();
-              String encFamilyName = user.getFamilyName();
-              String encFullname = "";
-              if (tool.getSendUsername().equals(Constants.DATA_MANDATORY)) {
-                  encFullname = user.getGivenName();
-                  if ((user.getMiddleName() != null) && (user.getMiddleName().length() > 0)) {
-                	  encFullname += " " + user.getMiddleName();
-                  }
-                  encFullname += " " + user.getFamilyName();
-              }
-              
-              if (tool.isEncryptData()) {
-            	  Encryption encryptInstance = new Encryption();
-            	  encUserId = encryptInstance.encrypt(encUserId);
-            	  encBatchUid = encryptInstance.encrypt(encBatchUid);
-            	  encUserName = encryptInstance.encrypt(encUserName);
-            	  encFamilyName = encryptInstance.encrypt(encFamilyName);
-            	  encFullname = encryptInstance.encrypt(encFullname);
-            	  String[] encEmailArr = encEmail.split("(?=@)");
-            	  encEmail = encEmailArr.length > 1 ? (encryptInstance.encrypt(encEmailArr[0]) + encEmailArr[1]) : "";
-              }
-              member = member.append("      <user_id>").append(encUserId).append("</user_id>\n");
+              member = member.append("      <user_id>").append(userId).append("</user_id>\n");
               try {
                 if (MyPlacesUtil.avatarsEnabled() && tool.getDoSendAvatar()) {
                   String image = null;
-                  /*if (MyPlacesUtil.displayAvatar(user.getId())) {
+                  if (Utils.displayAvatar(user.getId())) {
                     image = MyPlacesUtil.getAvatarImage(user.getId());
-                  }*/
+                  }
                   if (image != null) {
                     member = member.append("      <user_image>").append(b2Context.getServerUrl()).append(image).append("</user_image>\n");
                   } else {
@@ -203,15 +179,20 @@ public class Memberships implements Action {
                 member = member.append("      <roles>").append(roles).append("</roles>\n");
               }
               if (tool.getDoSendUserSourcedid()) {
-                member = member.append("      <person_sourcedid>").append(encBatchUid).append("</person_sourcedid>\n");
+                member = member.append("      <person_sourcedid>").append(user.getBatchUid()).append("</person_sourcedid>\n");
               }
               if (tool.getSendEmail().equals(Constants.DATA_MANDATORY)) {
-                member = member.append("      <person_contact_email_primary>").append(encEmail).append("</person_contact_email_primary>\n");
+                member = member.append("      <person_contact_email_primary>").append(user.getEmailAddress()).append("</person_contact_email_primary>\n");
               }
               if (tool.getSendUsername().equals(Constants.DATA_MANDATORY)) {
-                member = member.append("      <person_name_given>").append(encUserName).append("</person_name_given>\n");
-                member = member.append("      <person_name_family>").append(encFamilyName).append("</person_name_family>\n");
-                member = member.append("      <person_name_full>").append(encFullname).append("</person_name_full>\n");
+                member = member.append("      <person_name_given>").append(user.getGivenName()).append("</person_name_given>\n");
+                member = member.append("      <person_name_family>").append(user.getFamilyName()).append("</person_name_family>\n");
+                String fullname = user.getGivenName();
+                if ((user.getMiddleName() != null) && (user.getMiddleName().length() > 0)) {
+                  fullname += " " + user.getMiddleName();
+                }
+                fullname += " " + user.getFamilyName();
+                member = member.append("      <person_name_full>").append(fullname).append("</person_name_full>\n");
               }
               if (role.equals(Role.STUDENT) && tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
                 String resultSourcedid = Utils.getServiceId(serviceData, userId, tool.getSendUUID());
@@ -249,8 +230,7 @@ public class Memberships implements Action {
             }
           }
         } catch (PersistenceException e) {
-        } catch (Exception e) {
-		}
+        }
         xml.append("  </memberships>\n");
 
         response.setData(xml.toString());

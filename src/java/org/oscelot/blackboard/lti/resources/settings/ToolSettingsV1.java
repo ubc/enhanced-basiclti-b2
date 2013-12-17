@@ -1,4 +1,4 @@
-<%--
+/*
     basiclti - Building Block to provide support for Basic LTI
     Copyright (C) 2013  Stephen P Vickers
 
@@ -19,11 +19,42 @@
     Contact: stephen@spvsoftwareproducts.com
 
     Version history:
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
---%>
-<%
-  System.err.println("BasicLTI B2 installed");
-%>
+      3.0.0 30-Oct-13  Added to release
+*/
+package org.oscelot.blackboard.lti.resources.settings;
+
+import com.google.gson.annotations.SerializedName;
+import java.util.Collections;
+import java.util.Map;
+
+
+public class ToolSettingsV1 {
+  @SerializedName("@type") private String type;
+  @SerializedName("@id") private String id;
+  private Map<String, String> custom;
+
+  public String getType() {
+    return this.type;
+  }
+
+  public void setType(String type) {
+    this.type = type;
+  }
+
+  public String getId() {
+    return this.id;
+  }
+
+  public void setId(String id) {
+    this.id = id;
+  }
+
+  public Map<String, String> getCustom() {
+    return Collections.unmodifiableMap(this.custom);
+  }
+
+  public void setCustom(Map<String, String> custom) {
+    this.custom = Collections.unmodifiableMap(custom);
+  }
+
+}

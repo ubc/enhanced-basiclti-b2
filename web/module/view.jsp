@@ -23,6 +23,7 @@
       2.3.0  5-Nov-12  Added mapping for institution roles
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <%@page import="java.util.List,
                 java.util.ArrayList,
@@ -32,10 +33,10 @@
                 blackboard.servlet.data.ngui.CollapsibleListItem,
                 blackboard.platform.intl.BbLocale,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Tool,
-                org.oscelot.blackboard.basiclti.ModuleFeed,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.DashboardFeed,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG" %>
 <%
@@ -63,7 +64,7 @@
   }
   String launchText = b2Context.getResourceString("page.module.view.launch") + " " + tool.getName();
 
-  ModuleFeed feed = new ModuleFeed(b2Context, module, tool, launchUrl);
+  DashboardFeed feed = new DashboardFeed(b2Context, module, tool, launchUrl);
 
   List<CollapsibleListItem> listItems = feed.getItems();
 
@@ -125,7 +126,7 @@ ${content}
   }
   if (showLaunch) {
 %>
-    <div class="blockGroups" style="text-align: center; zzpadding-bottom: 5px;">
+    <div class="blockGroups" style="text-align: center;">
       <bbNG:button url="${launchUrl}" label="${launchText}" target="${target}" />
     </div>
 <%

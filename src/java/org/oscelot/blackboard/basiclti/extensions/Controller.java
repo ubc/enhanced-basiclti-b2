@@ -26,6 +26,7 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
@@ -42,6 +43,8 @@ import blackboard.data.content.Content;
 import blackboard.persist.Id;
 import blackboard.persist.PersistenceException;
 
+import java.net.URISyntaxException;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -51,11 +54,13 @@ import net.oauth.OAuthConsumer;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthValidator;
 import net.oauth.SimpleOAuthValidator;
+import net.oauth.OAuthException;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Constants;
-import org.oscelot.blackboard.basiclti.Utils;
+
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Constants;
+import org.oscelot.blackboard.lti.Utils;
 
 
 public class Controller extends HttpServlet {
@@ -213,8 +218,14 @@ public class Controller extends HttpServlet {
     OAuthValidator validator = new SimpleOAuthValidator();
     OAuthMessage message = OAuthServlet.getMessage(this.b2Context.getRequest(), null);
     try {
-      validator.validateMessage(message, oAuthAccessor);
-    } catch (Exception e) {
+      message.validateMessage(oAuthAccessor, validator);
+    } catch (OAuthException e) {
+      this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
+      ok = false;
+    } catch (IOException e) {
+      this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
+      ok = false;
+    } catch (URISyntaxException e) {
       this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
       ok = false;
     }

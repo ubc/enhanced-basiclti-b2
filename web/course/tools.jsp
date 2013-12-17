@@ -39,14 +39,15 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13  Added remote configure option
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="blackboard.servlet.tags.ngui.ContextMenuTag,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.ToolList"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.ToolList"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:learningSystemPage title="${bundle['plugin.name']}">
@@ -104,7 +105,7 @@
   </bbNG:pageHeader>
   <bbNG:form name="frmTools" method="post" action="toolsaction?${query}">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
-    <bbNG:inventoryList collection="<%=toolList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.basiclti.Tool"
+    <bbNG:inventoryList collection="<%=toolList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.lti.Tool"
        description="${bundle['page.system.tools.description']}" reorderable="true" reorderType="${bundle['page.system.tools.reordertype']}"
        reorderingUrl="<%=reorderingUrl%>"
        itemIdAccessor="getId" itemNameAccessor="getName" showAll="false" emptyMsg="${bundle['page.course.tools.empty']}">
@@ -149,10 +150,24 @@
         <bbNG:listContextMenu order="edit,${itemSeparator},availability,${itemSeparator},open">
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.edit']}" url="edit.jsp?${id}&${query}" id="edit" />
           <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${availableAction}');" id="availability" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}&${query}${list}" target="${target}" id="open" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}${list}&${query}" target="${target}" id="open" />
         </bbNG:listContextMenu>
 <%
     } else if (allowLocal) {
+      if (tool.getConfig().equals(Constants.DATA_TRUE)) {
+%>
+        <bbNG:listContextMenu order="register,data,launch,${itemSeparator},availability,${itemSeparator},xml,delete,${itemSeparator},open,${itemSeparator},config">
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="register" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.data']}" url="data.jsp?${id}&${query}" id="data" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.launch']}" url="launch.jsp?${id}&${query}" id="launch" />
+          <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${availableAction}');" id="availability" />
+          <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}&${query}" target="_blank" id="xml" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}${list}&${query}" target="${target}" id="open" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="../config.jsp?${id}${list}&${query}" target="${target}" id="config" />
+        </bbNG:listContextMenu>
+<%
+      } else {
 %>
         <bbNG:listContextMenu order="register,data,launch,${itemSeparator},availability,${itemSeparator},xml,delete,${itemSeparator},open">
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="register" />
@@ -161,9 +176,10 @@
           <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${availableAction}');" id="availability" />
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}&${query}" target="_blank" id="xml" />
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}&${query}${list}" target="${target}" id="open" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}${list}&${query}" target="${target}" id="open" />
         </bbNG:listContextMenu>
 <%
+      }
     } else {
 %>
         &nbsp;<img src="/images/ci/icons/disabled_li.gif" alt="${bundle['page.course.tools.availability.disabled']}" title="${bundle['page.course.tools.availability.disabled']}" />

@@ -38,6 +38,7 @@
                        Added support for launching from a module outside a course
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13  Allow access to tools defined by URL even when define tools by instructor option is not enabled
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -52,9 +53,9 @@
                 blackboard.persist.KeyNotFoundException,
                 blackboard.persist.PersistenceException,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.Tool"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.Tool"
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:learningSystemPage title="${bundle['page.course_tool.splash.pagetitle']}">
@@ -68,6 +69,10 @@
      b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, ""));
   String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
   Tool tool = new Tool(b2Context, toolId);
+  if (tool.getName().length() <= 0) {
+    String id = b2Context.getSetting(false, true, Constants.TOOL_ID + "." + toolId + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, "");
+    tool = new Tool(b2Context, id);
+  }
   boolean allowLocal = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   String actionUrl = "";
   if (courseId.length() > 0) {
@@ -85,9 +90,11 @@
   if (!tool.getIsEnabled().equals(Constants.DATA_TRUE) || (!tool.getIsSystemTool() && !tool.getByUrl() && !allowLocal)) {
     response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
        Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.disabled.error"));
+    return;
   } else if (tool.getDoSendRoles() && (courseId.length() > 0) && (b2Context.getContext().getCourseMembership() == null)) {
     response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
        Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.noaccess.error"));
+    return;
   } else {
     if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE) || sourcePage.equals(Constants.TOOLS_PAGE)) {
       actionUrl = Utils.getQuery(request) + "&";
@@ -96,6 +103,7 @@
     if (!redirect && (tool.getSplash().equals(Constants.DATA_TRUE) || tool.getUserHasChoice()) && (moduleId != null)) {
       response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
          Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.splash.error"));
+      return;
     } else if (!redirect && (tool.getSplash().equals(Constants.DATA_TRUE) || tool.getUserHasChoice())) {
       actionUrl = "tool.jsp?" + actionUrl + idParam + Constants.ACTION + "=redirect";
       pageContext.setAttribute("bundle", b2Context.getResourceStrings());
@@ -266,6 +274,7 @@
               "&navItem=content&href=" + url;
       }
       response.sendRedirect(url);
+      return;
     }
   }
 %>

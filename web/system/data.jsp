@@ -37,6 +37,7 @@
                        Added default mappings for institution roles
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -47,10 +48,10 @@
                 blackboard.data.role.PortalRole,
                 blackboard.platform.security.CourseRole,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.data.title']}" entitlement="system.admin.VIEW">
@@ -79,6 +80,8 @@
   }
 
   if (request.getMethod().equalsIgnoreCase("POST")) {
+    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId,
+       b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_ID, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_ID, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXTIDTYPE, b2Context.getRequestParameter(Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_SOURCEDID, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_FALSE));
@@ -109,7 +112,7 @@
     cancelUrl = b2Context.setReceiptOptions(cancelUrl,
        b2Context.getResourceString("page.receipt.success"), null);
     response.sendRedirect(cancelUrl);
-
+    return;
   }
 
   Map<String,String> params = new HashMap<String,String>();

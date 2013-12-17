@@ -26,13 +26,14 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
 import java.util.List;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
+import org.oscelot.blackboard.lti.Tool;
 
 public interface Action {
 

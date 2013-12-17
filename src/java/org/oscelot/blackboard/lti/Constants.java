@@ -31,8 +31,10 @@
       2.2.0  2-Sep-12  Added constants for content page menus and cache
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12  Added constants for grade column options
+      3.0.0 30-Oct-13
+      3.0.1  5-Nov-13  Changed new message type names to camel case
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -42,8 +44,11 @@ import java.util.ArrayList;
 
 public class Constants {
 
-  public static final String LTI_MESSAGE_TYPE = "basic-lti-launch-request";
+  public static final String LAUNCH_MESSAGE_TYPE = "basic-lti-launch-request";
+  public static final String CONFIG_MESSAGE_TYPE = "ConfigureLaunchRequest";
+  public static final String DASHBOARD_MESSAGE_TYPE = "DashboardRequest";
   public static final String LTI_VERSION = "LTI-1p0";
+  public static final String LTI_VERSION1P2 = "LTI-1p2";
   public static final String CUSTOM_NAME_PREFIX = "custom_";
   public static final String OAUTH_CALLBACK = "about:blank";
   public static final String LTI_MESSAGE = "lti_msg";
@@ -51,6 +56,9 @@ public class Constants {
   public static final String LTI_ERROR_MESSAGE = "lti_errormsg";
   public static final String LTI_ERROR_LOG = "lti_errorlog";
   public static final String LTI_LMS = "learn";
+  public static final String LTI_LMS_NAME = "Learn";
+  public static final String LTI_LMS_SUPPLIER_CODE = "Bb";
+  public static final String LTI_LMS_SUPPLIER_NAME = "Blackboard Inc";
 
 // Content handler constants
   public static final String RESOURCE_HANDLE = "resource/x-osc-basiclti";
@@ -67,6 +75,8 @@ public class Constants {
 // Tool setting parameter names
   public static final String TOOL_PARAMETER_PREFIX = "tool";
   public static final String DOMAIN_PARAMETER_PREFIX = "domain";
+  public static final String MESSAGE_PARAMETER_PREFIX = "message";
+  public static final String SERVICE_PARAMETER_PREFIX = "service";
   public static final String TOOL_ID = "id";
   public static final String TOOL_ID_NEW = "id_new";
   public static final String TOOL_ENABLE = "enable";
@@ -99,6 +109,7 @@ public class Constants {
   public static final String TOOL_IROLE = "irole";
   public static final String TOOL_ADMINISTRATOR = "administrator";
   public static final String TOOL_XML = "xml";
+  public static final String TOOL_XMLURL = "xmlurl";
   public static final String TOOL_EXT_OUTCOMES = "ext_outcomes";
   public static final String TOOL_EXT_OUTCOMES_COLUMN = "ext_outcomes_column";
   public static final String TOOL_EXT_OUTCOMES_FORMAT = "ext_outcomes_format";
@@ -124,7 +135,13 @@ public class Constants {
   public static final String TOOL_COURSETOOL = "coursetool";
   public static final String TOOL_MODULE = "mid";
   public static final String TOOL_COURSEID = "courseid";
-  public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
+
+// Message types
+  public static final String MESSAGE_CONFIG = "config";
+  public static final String MESSAGE_DASHBOARD = "dashboard";
+
+  public static final String SERVICE_CLASS = "class";
+  public static final String SERVICE_UNSIGNED = "unsigned";
 
 // Cache setting parameter names
   public static final String CACHE_AGE_PARAMETER = "cacheage";
@@ -144,6 +161,8 @@ public class Constants {
   public static final String ACTION_TOOL = "tool";
   public static final String ACTION_NOTOOL = "notool";
   public static final String ACTION_NOMENU = "nomenu";
+  public static final String ACTION_SIGNED = "signed";
+  public static final String ACTION_UNSIGNED = "unsigned";
 
 // BasicLTI XML names
   public static final String XML_ROOT = "basic_lti_link";
@@ -211,6 +230,7 @@ public class Constants {
   public static final String IROLE_OBSERVER = "urn:lti:instrole:ims/lis/Observer";
   public static final String IROLE_GUEST = "urn:lti:instrole:ims/lis/Guest";
   public static final String IROLE_OTHER = "urn:lti:instrole:ims/lis/Other";
+  public static final String IROLE_ADMINISTRATOR = "urn:lti:instrole:ims/lis/Administrator";
 
 // Institution role IDs
   public static final String IROLE_ID_STUDENT = "L";
@@ -279,11 +299,14 @@ public class Constants {
   public static final String DATE_FORMAT = "d-MMM-yyyy HH:mm";
   public static final String GROUPS_PARAMETER_NAME = "groups";
   public static final String PAGE_PARAMETER_NAME = "lti_page";
+  public static final String ADMIN_PAGE = "admin";
   public static final String COURSE_TOOLS_PAGE = "ctools";
   public static final String TOOLS_PAGE = "tools";
   public static final String CONTENT_PAGE = "content";
   public static final String WYSIWYG_WEBAPP = "/webapps/wysiwyg";
   public static final String XSL_FILE_EXTENSION = ".xsl";
+  public static final String TIMEOUT_PARAMETER = "timeout";
+  public static final String TIMEOUT_OPTION = "30";
   public static final int TIMEOUT = 30000;
   public static final String CACHE_OPTION = "0";
   public static final String TAB_PARAMETER_NAME = "tab_tab_group_id";
@@ -298,6 +321,13 @@ public class Constants {
   public static final String MENU_CREATE_OTHER = "createOther";
   public static final String MENU_NEW_PAGE = "newPage";
   public static final String MENU_TEXTBOOK = "textbook";
+
+// Names of resource options
+  public static final String RESOURCE_PATH = "lti";
+  public static final String RESOURCE_PROFILE = "profile";
+  public static final String RESOURCE_SETTING = "setting";
+  public static final String RESOURCE_ASSESSMENT = "assessment";
+
 
   public static final List<String> MENU_NAME = new ArrayList<String>() {{
     add(MENU_COLLABORATE);

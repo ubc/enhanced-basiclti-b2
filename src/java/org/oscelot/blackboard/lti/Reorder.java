@@ -35,14 +35,15 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.util.Map;
 import java.util.HashMap;
 
-import net.sf.json.JSON;
-import net.sf.json.JSONSerializer;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
 import javax.servlet.ServletException;
@@ -81,8 +82,9 @@ public class Reorder extends HttpServlet {
     resultMap.put("timestamp", String.valueOf(System.currentTimeMillis()));
     response.setContentType("text/x-json");
     response.setCharacterEncoding("UTF-8");
-    JSON json = JSONSerializer.toJSON(resultMap);
-    json.write(response.getWriter());
+    GsonBuilder gb = new GsonBuilder();
+    Gson gson = gb.create();
+    response.getWriter().print(gson.toJson(resultMap));
 
   }
 

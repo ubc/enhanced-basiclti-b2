@@ -35,8 +35,9 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -44,6 +45,7 @@ import java.util.Iterator;
 import java.util.Arrays;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import java.util.Collections;
 
 public class ToolList {
 
@@ -78,7 +80,7 @@ public class ToolList {
   public List<Tool> getList() {
 
     if (this.toolIDs == null) {
-      String toolOrder = "";
+      String toolOrder;
       String[] tools;
       this.toolIDs = new ArrayList<String>();
       if (!this.isSystem) {
@@ -108,7 +110,7 @@ public class ToolList {
         String toolId = iter.next();
         if ((toolId != null) && (toolId.length() > 0)) {
           Tool tool = new Tool(this.b2Context, toolId, this.isDomain);
-          boolean doAdd = false;
+          boolean doAdd;
           if (this.isSystem) {
             doAdd = this.listAll || tool.getIsEnabled().equals(Constants.DATA_TRUE);
           } else if (tool.getIsAvailable().equals(Constants.DATA_TRUE)) {
@@ -126,7 +128,7 @@ public class ToolList {
       }
     }
 
-    return this.toolList;
+    return Collections.unmodifiableList(this.toolList);
 
   }
 
@@ -210,7 +212,7 @@ public class ToolList {
 
   private String getOrderPrefix() {
 
-    String prefix = null;
+    String prefix;
     if (this.isDomain) {
       prefix = "domains";
     } else {

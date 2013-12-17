@@ -41,6 +41,7 @@
       2.3.0  5-Nov-12  Added support for launching from a module outside a course
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <%@page import="java.util.Map,
                 java.util.List,
@@ -50,10 +51,10 @@
                 blackboard.persist.KeyNotFoundException,
                 blackboard.persist.PersistenceException,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Tool,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.LaunchParameters"%>
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.LaunchMessage"%>
 <%
   String moduleId = Utils.checkForModule(request);
   Module module = Utils.getModule(moduleId);
@@ -62,10 +63,15 @@
   String toolId = b2Context.getSetting(false, true,
      Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID,
      b2Context.getRequestParameter(Constants.TOOL_ID, ""));
-
+  String idString = "";
   Tool tool = new Tool(b2Context, toolId);
+  if (tool.getName().length() <= 0) {
+    idString = toolId;
+    toolId = b2Context.getSetting(false, true, Constants.TOOL_ID + "." + idString + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, "");
+    tool = new Tool(b2Context, toolId);
+  }
   String toolURL = tool.getLaunchUrl();
-
-  LaunchParameters launchParams = new LaunchParameters(b2Context, toolId, toolURL, module);
-  List<Map.Entry<String, String>> params = launchParams.getParams();
+  LaunchMessage message = new LaunchMessage(b2Context, toolId, idString, module);
+  message.signParameters(toolURL, tool.getLaunchGUID(), tool.getLaunchSecret());
+  List<Map.Entry<String, String>> params = message.getParams();
 %>

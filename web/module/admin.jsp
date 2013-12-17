@@ -23,17 +23,18 @@
       2.3.0  5-Nov-12  Added mapping for institution roles
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <%@page import="java.util.List,
                 java.util.Map,
                 java.util.Iterator,
                 java.util.HashMap,
                 blackboard.data.role.PortalRole,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Tool,
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Tool,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG" %>
 <%
@@ -88,6 +89,7 @@
     cancelUrl = b2Context.setReceiptOptions(cancelUrl,
        b2Context.getResourceString("page.receipt.success"), null);
     response.sendRedirect(cancelUrl);
+    return;
   }
 
   if (errorResourceString != null) {

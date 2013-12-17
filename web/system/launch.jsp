@@ -36,15 +36,16 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.Map,
                 java.util.HashMap,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.launch.title']}" entitlement="system.admin.VIEW">
@@ -66,6 +67,8 @@
   String toolSettingPrefix = prefix + "." + toolId + ".";
 
   if (request.getMethod().equalsIgnoreCase("POST")) {
+    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId,
+       b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_OPEN_IN, b2Context.getRequestParameter(Constants.TOOL_OPEN_IN, Constants.DATA_FRAME));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_WINDOW_NAME, b2Context.getRequestParameter(Constants.TOOL_WINDOW_NAME, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_SPLASH, b2Context.getRequestParameter(Constants.TOOL_SPLASH, Constants.DATA_FALSE));
@@ -80,6 +83,7 @@
     cancelUrl = b2Context.setReceiptOptions(cancelUrl,
        b2Context.getResourceString("page.receipt.success"), null);
     response.sendRedirect(cancelUrl);
+    return;
   }
 
   Map<String,String> params = new HashMap<String,String>();

@@ -23,11 +23,12 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <%@page import="com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.utils.StringCache,
                 org.oscelot.blackboard.utils.StringCacheFile,
-                org.oscelot.blackboard.basiclti.Constants" %>
+                org.oscelot.blackboard.lti.Constants" %>
 <%
   B2Context b2Context = new B2Context(request);
 

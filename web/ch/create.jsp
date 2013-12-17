@@ -37,6 +37,7 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12  Added grade column options when defining tools by URL
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13  Added option to define via XML using a URL
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -59,12 +60,12 @@
                 blackboard.persist.content.ContentDbPersister,
                 blackboard.servlet.tags.ngui.datacollection.fields.TextboxTag,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Gradebook,
-                org.oscelot.blackboard.basiclti.Gradebook_v90,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Tool,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Gradebook,
+                org.oscelot.blackboard.lti.Gradebook_v90,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:learningSystemPage title="${bundle['page.content.create.title']}" onLoad="doOnLoad()">
@@ -74,6 +75,7 @@
   b2Context.setIgnoreContentContext(true);
   ToolList toolList = new ToolList(b2Context);
   boolean allowLocal = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean modify = true;
 
   String courseIdParamName = "course_id";
   String contentIdParamName = "content_id";
@@ -83,8 +85,11 @@
   String toolUrl = b2Context.getRequestParameter(Constants.TOOL_URL, "");
   String toolName = b2Context.getRequestParameter(Constants.TOOL_NAME, "");
   String xml = b2Context.getRequestParameter(Constants.TOOL_XML, "");
+  String xmlurl = b2Context.getRequestParameter(Constants.TOOL_XMLURL, "");
+  String custom = b2Context.getRequestParameter(Constants.TOOL_CUSTOM, null);
 
-  boolean byXML = allowLocal && (xml.length() > 0);
+  boolean byXML = allowLocal && ((xml.length() > 0) || (xmlurl.length() > 0));
+
   boolean xmlTab = byXML;
   boolean urlTab = allowLocal && !xmlTab && ((toolName.length() > 0) || (toolUrl.length() > 0));
   boolean nameTab = !urlTab && !xmlTab;
@@ -97,50 +102,70 @@
 
   String errorResourceString = null;
   Map<String,String> params = null;
-  boolean ok = request.getMethod().equalsIgnoreCase("POST");
+  boolean ok = request.getMethod().equalsIgnoreCase("POST") || (toolId.length() > 0);
   if (byXML) {
-    ok = (toolId.length() <= 0) && (toolUrl.length() <= 0) && (toolName.length() <= 0);
+    ok = (xml.length() > 0) ^ (xmlurl.length() > 0);
     if (!ok) {
-      errorResourceString = "page.content.create.receipt.bothtools";
-    } else {
-      boolean isSecure = b2Context.getServerUrl().startsWith("https://");
-      params = Utils.getToolFromXML(xml, isSecure, false, false, true);
-      toolUrl = params.get(Constants.TOOL_URL);
-      toolName = params.get(Constants.TOOL_NAME);
-      ok = (toolUrl != null) && (toolName != null) && (toolUrl.length() > 0) && (toolName.length() > 0);
-      if (!ok) {
-        errorResourceString = "page.content.create.receipt.incompletexml";
+      errorResourceString = "page.system.tool.receipt.bothxml";
+    } else if (xmlurl.length() > 0) {
+      xml = Utils.readUrlAsString(b2Context, xmlurl);
+      if (xml.length() <= 0) {
+        errorResourceString = "page.system.tool.receipt.invalidxmlurl";
       } else {
-        params.remove(Constants.TOOL_URL);
-        params.remove(Constants.TOOL_NAME);
+        xmlurl = "";
       }
     }
-  } else if (ok) {
-    ok = ((toolId.length() > 0) ^ ((toolUrl.length() > 0) || (toolName.length() > 0)));
-    if (!ok) {
-      if (toolId.length() <= 0) {
-        errorResourceString = "page.content.create.receipt.notool";
-      } else {
-        errorResourceString = "page.content.create.receipt.bothtools";
-      }
-    } else if (toolId.length() <= 0) {
-      ok = (toolUrl.length() > 0) && (toolName.length() > 0);
+  }
+  if (ok) {
+    if (byXML) {
+      ok = (toolId.length() <= 0) && (toolUrl.length() <= 0) && (toolName.length() <= 0);
       if (!ok) {
-        errorResourceString = "page.system.tool.receipt.incompletetool";
+        errorResourceString = "page.content.create.receipt.bothtools";
       } else {
-        try {
-          URL url = new URL(toolUrl);
-        } catch (MalformedURLException e) {
+        boolean isSecure = b2Context.getServerUrl().startsWith("https://");
+        params = Utils.getToolFromXML(b2Context, xml, isSecure, false, false, true);
+        if (params == null) {
           ok = false;
-          errorResourceString = "page.system.tool.receipt.invalidurl";
+          errorResourceString = "page.system.tool.receipt.invalidxml";
+        } else {
+          toolUrl = params.get(Constants.TOOL_URL);
+          toolName = params.get(Constants.TOOL_NAME);
+          ok = (toolUrl != null) && (toolName != null) && (toolUrl.length() > 0) && (toolName.length() > 0);
+          if (!ok) {
+            errorResourceString = "page.content.create.receipt.incompletexml";
+          } else {
+            params.remove(Constants.TOOL_URL);
+            params.remove(Constants.TOOL_NAME);
+          }
         }
       }
-    } else if (!toolList.isTool(toolId)) {
-      ok = false;
-      errorResourceString = "page.content.create.receipt.invalidtool";
+    } else if (ok) {
+      ok = ((toolId.length() > 0) ^ ((toolUrl.length() > 0) || (toolName.length() > 0)));
+      if (!ok) {
+        if (toolId.length() <= 0) {
+          errorResourceString = "page.content.create.receipt.notool";
+        } else {
+          errorResourceString = "page.content.create.receipt.bothtools";
+        }
+      } else if (toolId.length() <= 0) {
+        ok = (toolUrl.length() > 0) && (toolName.length() > 0);
+        if (!ok) {
+          errorResourceString = "page.system.tool.receipt.incompletetool";
+        } else {
+          try {
+            URL url = new URL(toolUrl);
+          } catch (MalformedURLException e) {
+            ok = false;
+            errorResourceString = "page.system.tool.receipt.invalidurl";
+          }
+        }
+      } else if (!toolList.isTool(toolId)) {
+        ok = false;
+        errorResourceString = "page.content.create.receipt.invalidtool";
+      }
+    } else if ((toolId.length() > 0) && toolList.isTool(toolId)) {
+      ok = true;
     }
-  } else if ((toolId.length() > 0) && toolList.isTool(toolId)) {
-    ok = true;
   }
 
   if (ok) {
@@ -149,6 +174,10 @@
       Tool tool = new Tool(b2Context, toolId);
       toolName = tool.getName();
     }
+
+  }
+
+  if (ok) {
 
     BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
     ContentDbPersister persister = (ContentDbPersister)bbPm.getPersister(ContentDbPersister.TYPE);
@@ -211,9 +240,11 @@
       contentSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
       toolSettingPrefix = contentSettingPrefix;
       contentContext.setSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, toolId);
-      cancelUrl = "modify.jsp?" + contentQuery;
-      cancelUrl = contentContext.setReceiptOptions(cancelUrl,
-         contentContext.getResourceString("page.content.create.receipt.success"), null);
+      if (modify) {
+        cancelUrl = "modify.jsp?" + contentQuery;
+        cancelUrl = contentContext.setReceiptOptions(cancelUrl,
+           contentContext.getResourceString("page.content.create.receipt.success"), null);
+      }
     }
     if (toolSettingPrefix != null) {
       b2Context.setIgnoreContentContext(true);
@@ -263,7 +294,12 @@
       }
       contentContext.setSetting(false, true, contentSettingPrefix + Constants.TOOL_EXT_SETTING, enable);
     }
-    contentContext.setSetting(false, true, contentSettingPrefix + Constants.TOOL_CUSTOM, "");
+    if (custom != null) {
+      custom = custom.replaceAll("&", "\n");
+    } else {
+      custom = "";
+    }
+    contentContext.setSetting(false, true, contentSettingPrefix + Constants.TOOL_CUSTOM, custom);
     contentContext.setSetting(false, true, contentSettingPrefix + Constants.TOOL_EXT_UUID,
        UUID.randomUUID().toString());
     if (params != null) {
@@ -284,6 +320,7 @@
     }
 
     response.sendRedirect(cancelUrl);
+    return;
   }
 
   if (errorResourceString != null) {
@@ -309,11 +346,12 @@
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" title="${bundle['page.content.create.title']}" />
   </bbNG:pageHeader>
   <bbNG:jsFile href="js/ajax.js" />
-  <bbNG:jsBlock>
 <%
     if (allowLocal && outcomesEnabled) {
 %>
+<bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
+//<![CDATA[
 var lti_checking = false;
 var lti_url = '';
 var lti_domain = '';
@@ -370,19 +408,26 @@ function doValidateForm() {
   }
   return ok;
 }
+//]]>
+</script>
+  </bbNG:jsBlock>
 <%
     } else {
 %>
+  <bbNG:jsBlock>
+<script language="javascript" type="text/javascript">
+//<![CDATA[
 function doOnLoad() {
 }
 function doValidateForm() {
   return validateForm();
 }
+//]]>
+</script>
+  </bbNG:jsBlock>
 <%
     }
 %>
-</script>
-  </bbNG:jsBlock>
   <bbNG:form action="create.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return doValidateForm();">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:stepGroup active="<%=nameTab%>" title="${bundle['page.content.create.tab.byname']}">
@@ -446,8 +491,12 @@ function doValidateForm() {
     </bbNG:stepGroup>
     <bbNG:stepGroup active="<%=xmlTab%>" title="${bundle['page.content.create.tab.byxml']}">
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.xml.title']}" instructions="${bundle['page.system.tool.xml.instructions']}">
-        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.xml.label']}">
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.xml.url.label']}">
+          <bbNG:textElement type="string" name="<%=Constants.TOOL_XMLURL%>" value="<%=xmlurl%>" size="80" helpText="${bundle['page.system.tool.xml.url.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.xml.xml.label']}">
           <textarea name="<%=Constants.TOOL_XML%>" cols="80" rows="20"><%=xml%></textarea>
+          <bbNG:elementInstructions text="${bundle['page.system.tool.xml.xml.instructions']}" />
         </bbNG:dataElement>
       </bbNG:step>
     </bbNG:stepGroup>

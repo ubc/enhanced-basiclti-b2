@@ -22,8 +22,12 @@
       2.3.0  5-Nov-12  Added to release
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import blackboard.data.navigation.NavigationApplication;
 import blackboard.data.navigation.NavigationItem;
@@ -117,6 +121,27 @@ public class CourseTool {
 
   }
 
+  public String getDescription() {
+
+    String description = null;
+    if (this.navItem != null) {
+      description = this.navItem.getDescription();
+    }
+
+    return description;
+
+  }
+
+  public void setDescription(String description) {
+
+    if ((this.navItem != null) && !this.navItem.getDescription().equals(description)) {
+      this.navApplication.setDescription(description);
+      this.navItem.setDescription(description);
+      this.navChanged = true;
+    }
+
+  }
+
   public final void persist() {
 
     if (this.navChanged) {
@@ -146,7 +171,7 @@ public class CourseTool {
         this.toolChanged = true;
         this.persist();
       } catch (PersistenceException e) {
-        System.err.println(e.getMessage());
+        Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
       }
     }
 
@@ -159,9 +184,9 @@ public class CourseTool {
       NavigationApplicationDbLoader navLoader = NavigationApplicationDbLoader.Default.getInstance();
       na = navLoader.loadById(Id.generateId(NavigationApplication.DATA_TYPE, this.b2Context.getSetting(this.toolSettingPrefix + Constants.TOOL_COURSETOOLAPP, "")));
     } catch (KeyNotFoundException e) {
-      System.err.println(e.getMessage());
+      Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
     } catch (PersistenceException e) {
-      System.err.println(e.getMessage());
+      Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
     }
 
     return na;
@@ -175,9 +200,9 @@ public class CourseTool {
       NavigationItemDbLoader navLoader = NavigationItemDbLoader.Default.getInstance();
       ni = navLoader.loadByInternalHandle(this.b2Context.getVendorId() + "-" + this.b2Context.getHandle() + "-nav-" + this.toolId);
     } catch (KeyNotFoundException e) {
-      System.err.println(e.getMessage());
+      Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
     } catch (PersistenceException e) {
-      System.err.println(e.getMessage());
+      Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
     }
 
     return ni;
@@ -205,7 +230,7 @@ public class CourseTool {
     }
     na.setLargeIcon(this.b2Context.getPath() + "icon.jsp?course_id=@X@course.pk_string@X@&" + Constants.TOOL_ID + "=" + this.tool.getId());
     na.setLabel(this.tool.getName());
-    na.setDescription("");
+    na.setDescription(this.tool.getDescription());
     na.setName(this.tool.getName());
 
     this.navChanged = true;
@@ -222,7 +247,7 @@ public class CourseTool {
 
     ni.setInternalHandle(appName + "-nav-" + this.tool.getId());
     ni.setLabel(this.tool.getName());
-    ni.setDescription("");
+    ni.setDescription(this.tool.getDescription());
     ni.setHref(this.b2Context.getPath() + "tool.jsp?course_id=@X@course.pk_string@X@&" + Constants.TOOL_ID + "=" + this.tool.getId());
     ni.setSrc(this.b2Context.getPath() + "icon.jsp?course_id=@X@course.pk_string@X@&" + Constants.TOOL_ID + "=" + this.tool.getId());
     ni.setApplication(appName + "-" + this.tool.getId());
@@ -242,8 +267,6 @@ public class CourseTool {
   private void saveNavigation() {
 
     try {
-//      NavigationApplicationDbPersister naPersister = NavigationApplicationDbPersister.Default.getInstance();
-//      naPersister.persist(this.navApplication);
       this.navApplication.persist();
       String oldApplicationId = this.b2Context.getSetting(this.toolSettingPrefix + Constants.TOOL_COURSETOOLAPP, "");
       String applicationId = this.navApplication.getId().toExternalString();
@@ -261,9 +284,9 @@ public class CourseTool {
       this.navChanged = false;
       PersistenceServiceFactory.getInstance().getDbPersistenceManager().refreshLoader("PlugInDbLoader");
     } catch (PersistenceException e) {
-      System.err.println(e.getMessage());
+      Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
     } catch (ValidationException e) {
-      System.err.println(e.getMessage());
+      Logger.getLogger(CourseTool.class.getName()).log(Level.SEVERE, null, e);
     }
 
   }

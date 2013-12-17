@@ -37,14 +37,15 @@
       2.3.0  5-Nov-12  Added option for passing institution roles
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13  Added timeout parameter
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.Map,
                 java.util.HashMap,
                 blackboard.platform.user.MyPlacesUtil,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.utils.StringCache,
                 org.oscelot.blackboard.utils.StringCacheFile,
                 com.spvsoftwareproducts.blackboard.utils.B2Context"
@@ -55,12 +56,11 @@
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
-//  String version = B2Context.getVersionNumber("");
-//  boolean isv91 = version.compareTo("9.1.") >= 0;
   boolean isv91 = B2Context.getIsVersion(9, 1, 0);
   boolean enabledMashup = b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
 
   if (request.getMethod().equalsIgnoreCase("POST")) {
+    b2Context.setSaveEmptyValues(false);
     b2Context.setSetting(Constants.CONSUMER_NAME_PARAMETER, request.getParameter(Constants.CONSUMER_NAME_PARAMETER));
     b2Context.setSetting(Constants.CONSUMER_DESCRIPTION_PARAMETER, request.getParameter(Constants.CONSUMER_DESCRIPTION_PARAMETER));
     b2Context.setSetting(Constants.CONSUMER_EMAIL_PARAMETER, request.getParameter(Constants.CONSUMER_EMAIL_PARAMETER));
@@ -86,9 +86,12 @@
       b2Context.setSetting(Constants.AVAILABILITY_PARAMETER, b2Context.getRequestParameter(Constants.AVAILABILITY_PARAMETER, Constants.AVAILABILITY_DEFAULT_OFF));
     }
     b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, b2Context.getRequestParameter(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(Constants.TIMEOUT_PARAMETER, b2Context.getRequestParameter(Constants.TIMEOUT_PARAMETER, String.valueOf(Constants.TIMEOUT_OPTION)));
     b2Context.setSetting(Constants.CACHE_AGE_PARAMETER, b2Context.getRequestParameter(Constants.CACHE_AGE_PARAMETER, Constants.CACHE_OPTION));
     b2Context.setSetting(Constants.CACHE_CAPACITY_PARAMETER, b2Context.getRequestParameter(Constants.CACHE_CAPACITY_PARAMETER, Constants.CACHE_OPTION));
-    if (!b2Context.getSetting(Constants.CACHE_AGE_PARAMETER).matches("\\d+")) {
+    if (!b2Context.getSetting(Constants.TIMEOUT_PARAMETER).matches("\\d*")) {
+      b2Context.setReceipt(b2Context.getResourceString("page.system.settings.step3.timeout.error"), false);
+    } else if (!b2Context.getSetting(Constants.CACHE_AGE_PARAMETER).matches("\\d+")) {
       b2Context.setReceipt(b2Context.getResourceString("page.system.settings.step4.cacheage.error"), false);
     } else if (!b2Context.getSetting(Constants.CACHE_CAPACITY_PARAMETER).matches("\\d+")) {
       b2Context.setReceipt(b2Context.getResourceString("page.system.settings.step4.cachecapacity.error"), false);
@@ -104,6 +107,7 @@
       cancelUrl = b2Context.setReceiptOptions(cancelUrl,
          b2Context.getResourceString("page.receipt.success"), null);
       response.sendRedirect(cancelUrl);
+      return;
     }
   }
 
@@ -124,7 +128,6 @@
     params.put(Constants.MASHUP_PARAMETER, b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE));
   }
   if (B2Context.getIsVersion(9, 1, 8)) {
-    params.put(Constants.AVAILABILITY_PARAMETER, b2Context.getSetting(Constants.AVAILABILITY_PARAMETER, Constants.AVAILABILITY_DEFAULT_OFF));
     params.put(Constants.AVAILABILITY_PARAMETER + params.get(Constants.AVAILABILITY_PARAMETER), Constants.DATA_TRUE);
     params.put(Constants.AVAILABILITY_PARAMETER + Constants.AVAILABILITY_DEFAULT_ON + "label",
        b2Context.getResourceString("page.system.settings.step3.availability." + Constants.AVAILABILITY_DEFAULT_ON));
@@ -135,6 +138,7 @@
     params.put(Constants.AVAILABILITY_PARAMETER + Constants.AVAILABILITY_ALWAYS_OFF + "label",
        b2Context.getResourceString("page.system.settings.step3.availability." + Constants.AVAILABILITY_ALWAYS_OFF));
   }
+  params.put(Constants.TIMEOUT_PARAMETER, b2Context.getSetting(Constants.TIMEOUT_PARAMETER, Constants.TIMEOUT_OPTION));
   params.put(Constants.TOOL_INSTITUTION_ROLES, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE));
   pageContext.setAttribute("query", query);
   pageContext.setAttribute("params", params);
@@ -213,6 +217,9 @@
 <%
   }
 %>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.settings.step3.timeout.label']}">
+        <bbNG:textElement name="<%=Constants.TIMEOUT_PARAMETER%>" value="<%=b2Context.getSetting(Constants.TIMEOUT_PARAMETER, Constants.TIMEOUT_OPTION)%>" helpText="${bundle['page.system.settings.step3.timeout.instructions']}" size="10" />
+      </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" id="stepFour" title="${bundle['page.system.settings.step4.title']}" instructions="${bundle['page.system.settings.step4.instructions']}">
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step4.cacheage.label']}">

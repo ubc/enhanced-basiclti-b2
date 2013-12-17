@@ -38,8 +38,9 @@
       2.3.2  3-Apr-13  Fixed bug in getToolFromXML when running Learn 9 under SSL
                        Fixed bug with generating new tool IDs for instructor-defined tools
                        Removed entity expansion from XML parsing
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -51,9 +52,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Calendar;
 import java.util.Comparator;
+import java.util.Properties;
 
 import java.net.URL;
+import java.net.URLEncoder;
+import java.net.URLDecoder;
 import java.net.MalformedURLException;
+
+import org.apache.commons.httpclient.HttpClient;
 
 import java.text.SimpleDateFormat;
 
@@ -108,7 +114,11 @@ import blackboard.servlet.util.DatePickerUtil;
 import blackboard.portal.data.Module;
 import blackboard.portal.persist.ModuleDbLoader;
 
+import org.oscelot.blackboard.lti.services.Service;
+
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import javax.servlet.http.HttpSession;
+import org.apache.commons.httpclient.methods.GetMethod;
 
 
 public class Utils {
@@ -170,7 +180,7 @@ public class Utils {
       return "";
     }
 
-    String hash = "";
+    String hash;
 
 // Append the shared secret
     data = data + secret;
@@ -178,7 +188,7 @@ public class Utils {
     try {
       MessageDigest digest = MessageDigest.getInstance(algorithm);
       digest.reset();
-      byte hashdata[] = null;
+      byte hashdata[];
       try {
         hashdata = digest.digest(data.getBytes("UTF-8"));
       } catch (UnsupportedEncodingException e) {
@@ -232,7 +242,7 @@ public class Utils {
 
     boolean ok = false;
 
-    List<Parameter> authParams = null;
+    List<Parameter> authParams;
     String value = null;
     authParams = OAuthMessage.decodeAuthorization(header);
     for (Iterator<Parameter> iter = authParams.iterator(); iter.hasNext();) {
@@ -267,14 +277,50 @@ public class Utils {
   }
 
 // ---------------------------------------------------
+// Function to get the authorization headers from a request
+
+  public static Map<String,String> getAuthorizationHeaders(OAuthMessage message) {
+
+    Map<String,String> headers = new HashMap<String,String>();
+
+    try {
+      String[] authHeaders = message.getAuthorizationHeader("").split(", ");
+      for (int i = 0; i < authHeaders.length; i++) {
+        String[] header = authHeaders[i].split("=");
+        if (header.length == 2) {
+          String name = header[0].trim();
+          String value = header[1].trim();
+          if (value.equals("\"\"")) {
+            value = "";
+          } else if ((value.length() > 2) && value.startsWith("\"")) {
+            value = value.substring(1, value.length() - 1);
+          }
+          try {
+            name = URLDecoder.decode(name, "UTF-8");
+            value = URLDecoder.decode(value, "UTF-8");
+          } catch (UnsupportedEncodingException e) {
+          }
+          headers.put(name, value);
+        }
+      }
+    } catch (IOException e) {
+      headers.clear();
+    }
+
+    return headers;
+
+  }
+
+// ---------------------------------------------------
 // Function to get a course role with an option for replacing any admin-defined roles with
 // a standard system role (either Instructor or Teaching Assistant).
 
   public static Role getRole(Role role, boolean systemRolesOnly) {
 
     if (systemRolesOnly) {
-      String version = B2Context.getVersionNumber("");
-      if (version.compareTo("9.1.") >= 0) {
+//      String version = B2Context.getVersionNumber("");
+//      if (version.compareTo("9.1.") >= 0) {
+      if (B2Context.getIsVersion(9, 1, 0)) {
         CourseRole cRole = role.getDbRole();
         if (cRole.isRemovable()) {
           if (cRole.isActAsInstructor()) {
@@ -293,7 +339,7 @@ public class Utils {
 // ---------------------------------------------------
 // Function to get a comma separated list of the LTI role names
 
-  public static String getRoles(String roleSetting, boolean isAdmin) {
+  public static String getCRoles(String roleSetting, boolean isAdmin) {
 
     StringBuilder roles = new StringBuilder();
     if (roleSetting.contains("I")) {
@@ -313,7 +359,6 @@ public class Utils {
     }
     if (isAdmin) {
       roles.append(Constants.ROLE_ADMINISTRATOR).append(',');
-      roles.append(Constants.ROLE_SYSTEM_ADMINISTRATOR).append(',');
     }
     String rolesParameter = roles.toString();
     if (rolesParameter.endsWith(",")) {
@@ -325,17 +370,32 @@ public class Utils {
   }
 
 // ---------------------------------------------------
+// Function to get a comma separated list of the LTI role names
+
+  public static String addAdminRole(String roles, User user) {
+
+    if (user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN)) {
+      if (roles.length() > 0) {
+        roles += ",";
+      }
+      roles += Constants.ROLE_SYSTEM_ADMINISTRATOR;
+    }
+
+    return roles;
+
+  }
+
+// ---------------------------------------------------
 // Function to get a list of available course roles (with an option for including admin-defined roles)
 
   public static List<CourseRole> getCourseRoles(boolean systemRolesOnly) {
 
     List<CourseRole> roles;
     try {
-      String version = B2Context.getVersionNumber("");
       BbPersistenceManager pm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
       CourseRoleDbLoader crLoader = (CourseRoleDbLoader)pm.getLoader("CourseRoleDbLoader");
       List<CourseRole> allRoles = crLoader.loadAll();
-      if (systemRolesOnly && (version.compareTo("9.1.") >= 0)) {
+      if (systemRolesOnly && B2Context.getIsVersion(9, 1, 0)) {
         roles = new ArrayList<CourseRole>();
         for (Iterator<CourseRole> iter = allRoles.listIterator(); iter.hasNext();) {
           CourseRole role = iter.next();
@@ -395,7 +455,7 @@ public class Utils {
       sRoles.append(role).append(",");
     }
     if (isAdmin) {
-      sRoles.append(Constants.ROLE_SYSTEM_ADMINISTRATOR).append(',');
+      sRoles.append(Constants.IROLE_ADMINISTRATOR).append(',');
     }
     String rolesParameter = sRoles.toString();
     if (rolesParameter.endsWith(",")) {
@@ -453,59 +513,81 @@ public class Utils {
 // ---------------------------------------------------
 // Function to replace placeholders with user or course properties
 
-  public static String parseParameter(Course course, User user, String value) {
+  public static String parseParameter(B2Context b2Context, Properties props, Course course, User user, Tool tool, String value) {
 
     if (value.indexOf("$User.") >= 0) {
-      value = value.replaceAll("\\$User.id", user.getId().toExternalString());
-      value = value.replaceAll("\\$User.username", user.getUserName());
+      if (tool.getDoSendUserId()) {
+        value = value.replaceAll("\\$User.id", user.getId().toExternalString());
+        value = value.replaceAll("\\$User.username", user.getUserName());
+        value = value.replaceAll("\\$Person.studentId", user.getStudentId());
+      }
     }
     if (value.indexOf("$Person.") >= 0) {
-      value = value.replaceAll("\\$Person.sourcedId", user.getBatchUid());
-      value = value.replaceAll("\\$Person.name.full", user.getGivenName() + " " + user.getFamilyName());
-      value = value.replaceAll("\\$Person.name.family", user.getFamilyName());
-      value = value.replaceAll("\\$Person.name.given", user.getGivenName());
-      value = value.replaceAll("\\$Person.name.middle", user.getMiddleName());
-      value = value.replaceAll("\\$Person.name.prefix", user.getTitle());
-//      value = value.replaceAll("\\$Person.name.suffix", user.getSuffix());
-      value = value.replaceAll("\\$Person.address.street1", user.getStreet1());
-      value = value.replaceAll("\\$Person.address.street2", user.getStreet2());
-      value = value.replaceAll("\\$Person.address.street3", "");
-      value = value.replaceAll("\\$Person.address.street4", "");
-      value = value.replaceAll("\\$Person.address.locality", user.getCity());
-      value = value.replaceAll("\\$Person.address.statepr", user.getState());
-      value = value.replaceAll("\\$Person.address.country", user.getCountry());
-      value = value.replaceAll("\\$Person.address.postcode", user.getZipCode());
-      value = value.replaceAll("\\$Person.address.timezone", user.getLocale());
-      value = value.replaceAll("\\$Person.phone.mobile", user.getMobilePhone());
-      value = value.replaceAll("\\$Person.phone.primary", user.getHomePhone1());
-      value = value.replaceAll("\\$Person.phone.home", user.getHomePhone1());
-      value = value.replaceAll("\\$Person.phone.work", user.getBusinessPhone1());
-      value = value.replaceAll("\\$Person.email.primary", user.getEmailAddress());
-      value = value.replaceAll("\\$Person.email.personal", user.getEmailAddress());
-      value = value.replaceAll("\\$Person.webaddress", user.getWebPage());
-      value = value.replaceAll("\\$Person.sms", "");
-// extension to LIS
-      value = value.replaceAll("\\$Person.studentId", user.getStudentId());
+      if (tool.getDoSendUserSourcedid()) {
+        value = value.replaceAll("\\$Person.sourcedId", user.getBatchUid());
+      }
+      if (tool.getDoSendUsername()) {
+        value = value.replaceAll("\\$Person.name.full", (user.getGivenName() + " " + user.getFamilyName()).trim());
+        value = value.replaceAll("\\$Person.name.family", user.getFamilyName());
+        value = value.replaceAll("\\$Person.name.given", user.getGivenName());
+        value = value.replaceAll("\\$Person.name.middle", user.getMiddleName());
+        value = value.replaceAll("\\$Person.name.prefix", user.getTitle());
+//        value = value.replaceAll("\\$Person.name.suffix", user.getSuffix());
+        value = value.replaceAll("\\$Person.address.street1", user.getStreet1());
+        value = value.replaceAll("\\$Person.address.street2", user.getStreet2());
+//        value = value.replaceAll("\\$Person.address.street3", "");
+//        value = value.replaceAll("\\$Person.address.street4", "");
+        value = value.replaceAll("\\$Person.address.locality", user.getCity());
+        value = value.replaceAll("\\$Person.address.statepr", user.getState());
+        value = value.replaceAll("\\$Person.address.country", user.getCountry());
+        value = value.replaceAll("\\$Person.address.postcode", user.getZipCode());
+        value = value.replaceAll("\\$Person.address.timezone", user.getLocale());
+        value = value.replaceAll("\\$Person.phone.mobile", user.getMobilePhone());
+        value = value.replaceAll("\\$Person.phone.primary", user.getHomePhone1());
+        value = value.replaceAll("\\$Person.phone.home", user.getHomePhone1());
+        value = value.replaceAll("\\$Person.phone.work", user.getBusinessPhone1());
+        value = value.replaceAll("\\$Person.webaddress", user.getWebPage());
+//        value = value.replaceAll("\\$Person.sms", "");
+      }
+      if (tool.getDoSendEmail()) {
+        value = value.replaceAll("\\$Person.email.primary", user.getEmailAddress());
+        value = value.replaceAll("\\$Person.email.personal", user.getEmailAddress());
+      }
     }
     if (value.indexOf("$CourseSection.") >= 0) {
-      value = value.replaceAll("\\$CourseSection.sourcedId", course.getBatchUid());
+      if (tool.getDoSendContextSourcedid()) {
+        value = value.replaceAll("\\$CourseSection.sourcedId", course.getBatchUid());
+        value = value.replaceAll("\\$CourseSection.dataSource", course.getDataSourceId().toExternalString());
+        value = value.replaceAll("\\$CourseSection.sourceSectionId", course.getCourseId());
+      }
       value = value.replaceAll("\\$CourseSection.label", "");
       value = value.replaceAll("\\$CourseSection.title", course.getTitle());
       value = value.replaceAll("\\$CourseSection.shortDescription", course.getDescription());
       value = value.replaceAll("\\$CourseSection.longDescription", course.getDescription());
-      value = value.replaceAll("\\$CourseSection.courseNumber", "");
-      value = value.replaceAll("\\$CourseSection.credits", "");
+//      value = value.replaceAll("\\$CourseSection.courseNumber", "");
+//      value = value.replaceAll("\\$CourseSection.credits", "");
 //      value = value.replaceAll("\\$CourseSection.maxNumberofStudents", "");
 //      value = value.replaceAll("\\$CourseSection.numberofStudents", "");
-      value = value.replaceAll("\\$CourseSection.dept", "");
+//      value = value.replaceAll("\\$CourseSection.dept", "");
       value = value.replaceAll("\\$CourseSection.timeFrame.begin",
          formatCalendar(course.getStartDate(), Constants.DATE_FORMAT));
       value = value.replaceAll("\\$CourseSection.timeFrame.end",
          formatCalendar(course.getEndDate(), Constants.DATE_FORMAT));
 //      value = value.replaceAll("\\$CourseSection.enrollControl.accept", "");
 //      value = value.replaceAll("\\$CourseSection.enrollControl.allowed", "");
-      value = value.replaceAll("\\$CourseSection.dataSource", course.getDataSourceId().toExternalString());
-      value = value.replaceAll("\\$CourseSection.sourceSectionId", course.getCourseId());
+    }
+    if (value.indexOf("$Result.") >= 0) {
+      if (props.containsKey("lis_result_sourcedid")) {
+        value = value.replaceAll("\\$Result.sourcedId", props.getProperty("lis_result_sourcedid"));
+      }
+    }
+    ServiceList serviceList = new ServiceList(b2Context, false);
+    List<Service> services = serviceList.getList();
+    Service service = null;
+    for (Iterator<Service> iter = services.iterator(); iter.hasNext();) {
+      service = iter.next();
+      service.setTool(tool);
+      value = service.parseValue(value);
     }
 
     return value;
@@ -833,6 +915,39 @@ public class Utils {
   }
 
 // ---------------------------------------------------
+// Function to make an HTTP GET request and return the response
+
+  public static String readUrlAsString(B2Context b2Context, String urlString) {
+
+    String str = "";
+    int timeout;
+    try {
+      timeout = Integer.parseInt(b2Context.getSetting(Constants.TIMEOUT_PARAMETER) + "000");
+    } catch (NumberFormatException e) {
+      timeout = Constants.TIMEOUT;
+    }
+    GetMethod fileGet = null;
+    try {
+      fileGet = new GetMethod(urlString);
+      HttpClient client = new HttpClient();
+      client.getHttpConnectionManager().getParams().setConnectionTimeout(timeout);
+      int resp = client.executeMethod(fileGet);
+      if (resp == 200) {
+        str = fileGet.getResponseBodyAsString();
+      }
+    } catch (IOException e) {
+      Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, e);
+      str = "";
+    }
+    if (fileGet != null) {
+      fileGet.releaseConnection();
+    }
+
+    return str;
+
+  }
+
+// ---------------------------------------------------
 // Function to extract a domain (including optional path) from a URL
 
   public static String urlToDomainName(String urlString) {
@@ -948,10 +1063,10 @@ public class Utils {
 // ---------------------------------------------------
 // Function to extract the configuration settings for a tool or domain from an XML description
 
-  public static Map<String,String> getToolFromXML(String xml, boolean isSecure,
+  public static Map<String,String> getToolFromXML(B2Context b2Context, String xml, boolean isSecure,
      boolean isDomain, boolean isSystemTool, boolean isContentItem) {
 
-    Map<String,String> params = new HashMap<String,String>();
+    Map<String,String> params = null;
 
     Document doc = getXMLDoc(xml);
     Element root = null;
@@ -962,6 +1077,7 @@ public class Utils {
       ok = root.getName().equals(Constants.XML_ROOT);
     }
     if (ok) {
+      params = new HashMap<String,String>();
       params.put(Constants.TOOL_NAME, getXmlChildValue(root, Constants.XML_TITLE));
       params.put(Constants.TOOL_DESCRIPTION, getXmlChildValue(root, Constants.XML_DESCRIPTION));
       String secure = getXmlChildValue(root, Constants.XML_URL_SECURE);
@@ -1024,9 +1140,10 @@ public class Utils {
         }
         params.put(Constants.TOOL_CUSTOM, custom.toString());
       }
+System.err.println(mapToString(params));
+      params = checkXMLParams(b2Context, params, isDomain, isSystemTool, isContentItem);
     }
-
-    params = checkXMLParams(params, isDomain, isSystemTool, isContentItem);
+System.err.println(mapToString(params));
 
     return params;
 
@@ -1035,11 +1152,12 @@ public class Utils {
 // ---------------------------------------------------
 // Function to validatae the values for tool/domain configuration settings
 
-  private static Map<String,String> checkXMLParams(Map<String,String>params,
+  private static Map<String,String> checkXMLParams(B2Context b2Context, Map<String,String>params,
      boolean isDomain, boolean isSystemTool, boolean isContentItem) {
 
     Map<String,String> extensionProps = new HashMap<String,String>();
     extensionProps.put(Constants.TOOL_NAME, "");
+    extensionProps.put(Constants.TOOL_DESCRIPTION, "");
     extensionProps.put(Constants.TOOL_URL, "");
     extensionProps.put(Constants.TOOL_GUID, "");
     extensionProps.put(Constants.TOOL_SECRET, "");
@@ -1060,11 +1178,9 @@ public class Utils {
     extensionProps.put(Constants.TOOL_EXT_SETTING, Constants.DATA_OPTIONAL);
     extensionProps.put(Constants.TOOL_CSS, "");
     extensionProps.put(Constants.TOOL_ICON, "");
-    StringBuilder roles = new StringBuilder();
 
-    if (isContentItem) {
-      extensionProps.put(Constants.TOOL_DESCRIPTION, "");
-    } else {
+    StringBuilder roles = new StringBuilder();
+    if (!isContentItem) {
       extensionProps.put(Constants.TOOL_CONTEXT_ID, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID + Constants.DATA_COURSEID + Constants.DATA_PRIMARYKEY);
       extensionProps.put(Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_TRUE);
@@ -1084,6 +1200,15 @@ public class Utils {
       for (Iterator<CourseRole> iter = cRoles.iterator(); iter.hasNext();) {
         CourseRole cRole = iter.next();
         roles.append(cRole.getIdentifier());
+      }
+      if (isSystemTool) {
+        extensionProps.put(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG, Constants.DATA_TRUE);
+        ServiceList services = new ServiceList(b2Context, true);
+        Service service;
+        for (Iterator<Service> iter = services.getList().iterator(); iter.hasNext();) {
+          service = iter.next();
+          extensionProps.put(Constants.SERVICE_PARAMETER_PREFIX + "." + service.getId(), Constants.DATA_TRUE);
+        }
       }
     }
     String roleIDs = Constants.ROLE_ID_INSTRUCTOR + Constants.ROLE_ID_CONTENT_DEVELOPER + Constants.ROLE_ID_TEACHING_ASSISTANT +
@@ -1161,15 +1286,23 @@ public class Utils {
 // ---------------------------------------------------
 // Function to add the VTBE mashup option (to allow Learn 9.0 to accept the manifest file)
 
-  private static void addVTBEMashup(B2Context b2Context) {
+  private static void addVTBEMashup(B2Context b2Context, String toolId, String name, String description) {
 
     String appName = b2Context.getVendorId() + "-" + b2Context.getHandle();
     NavigationItem navItem = new NavigationItem();
 
-    navItem.setInternalHandle(appName + "-nav-vtbe");
-    navItem.setLabel("plugin.vtbe.name");
-    navItem.setDescription("plugin.vtbe.description");
-    navItem.setHref(b2Context.getPath() + "vtbe/link.jsp?course_id=@X@course.pk_string@X@&amp;content_id=@X@content.pk_string@X@");
+    String url;
+    String suffix = toolId;
+    if (toolId.length() <= 0) {
+      url = "vtbe/link.jsp?course_id=@X@course.pk_string@X@&amp;content_id=@X@content.pk_string@X@";
+    } else {
+      url = "vtbe/item.jsp?course_id=@X@course.pk_string@X@&content_id=@X@content.pk_string@X@&tool=" + toolId;
+      suffix = "-" + suffix;
+    }
+    navItem.setInternalHandle(appName + "-nav-vtbe" + suffix);
+    navItem.setLabel(name);
+    navItem.setDescription(description);
+    navItem.setHref(b2Context.getPath() + url);
     navItem.setSrc(null);
     navItem.setApplication(appName);
     navItem.setFamily("0");
@@ -1189,12 +1322,22 @@ public class Utils {
 
 // ---------------------------------------------------
 // Function to check that the VTBE mashup tool is enabled/disabled as per the configuration setting
-
   public static boolean checkVTBEMashup(B2Context b2Context, boolean enabled) {
+
+    return checkVTBEMashup(b2Context, enabled, "", b2Context.getResourceString("plugin.vtbe.name"),
+       b2Context.getResourceString("plugin.vtbe.description"));
+
+  }
+
+  public static boolean checkVTBEMashup(B2Context b2Context, boolean enabled, String toolId, String name, String description) {
 
     boolean ok = true;
     Id id = Id.UNSET_ID;
-    String handle = b2Context.getVendorId() + "-" + b2Context.getHandle() + "-nav-vtbe";
+    String suffix = toolId;
+    if (toolId.length() > 0) {
+      suffix = "-" + suffix;
+    }
+    String handle = b2Context.getVendorId() + "-" + b2Context.getHandle() + "-nav-vtbe" + suffix;
     try {
       NavigationItemDbLoader navLoader = NavigationItemDbLoader.Default.getInstance();
       NavigationItem navItem = navLoader.loadByInternalHandle(handle);
@@ -1205,7 +1348,7 @@ public class Utils {
     }
     if (ok && (enabled ^ id.getIsSet())) {
       if (!id.getIsSet()) {
-        addVTBEMashup(b2Context);
+        addVTBEMashup(b2Context, toolId, name, description);
       } else {
         try {
           NavigationItemDbPersister navPersister = NavigationItemDbPersister.Default.getInstance();
@@ -1262,11 +1405,13 @@ public class Utils {
 
     boolean usingSystem = false;
     boolean usingUploaded = false;
-
-    Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
-    usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
-    if (!usingSystem) {
+    try {
+      Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
+      usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
+      if (!usingSystem) {
         usingUploaded = MyPlacesUtil.getAvatarType().equals(AvatarType.user) && (userData.get(Setting.AVATAR_SHOW_USER.getKey())).equalsIgnoreCase("true");
+      }
+    } catch (PersistenceException e) {
     }
 
     return usingSystem || usingUploaded;
@@ -1313,8 +1458,85 @@ public class Utils {
 
   }
 
+/**
+ * Returns the prefix used for session parameters.
+ *
+ * @param b2Context  B2Context object
+ * @return prefix
+ */
+  public static String getSessionPrefix(B2Context b2Context) {
+
+    return b2Context.getVendorId() + "-" + b2Context.getHandle() + "-";
+
+  }
+
+/**
+ * Returns the value of a session parameter.
+ *
+ * @param session  HTTP session
+ * @param b2Context  B2Context object
+ * @param name  Name of parameter
+ * @return value
+ */
+  public static String getValueFromSession(HttpSession session, B2Context b2Context, String name, String defaultValue) {
+
+    String value = (String)session.getAttribute(getSessionPrefix(b2Context) + name);
+    if (value == null) {
+      value = defaultValue;
+    }
+
+    return value;
+
+  }
+
+/**
+ * Sets the value of a session parameter.
+ *
+ * @param session  HTTP session
+ * @param b2Context  B2Context object
+ * @param name  Name of parameter
+ * @param value  Parameter value
+ */
+  public static void setValueInSession(HttpSession session, B2Context b2Context, String name, String value) {
+
+    if (value != null) {
+      session.setAttribute(getSessionPrefix(b2Context) + name, value);
+    } else {
+      session.removeAttribute(getSessionPrefix(b2Context) + name);
+    }
+
+  }
+
 // ---------------------------------------------------
-// Function to convert a map to a string)
+// Function to URL encode a string
+
+  public static String urlEncode(String value) {
+
+    try {
+      value = URLEncoder.encode(value, "UTF-8");
+    } catch (UnsupportedEncodingException ex) {
+      value = URLEncoder.encode(value);
+    }
+
+    return value;
+
+  }
+
+// ---------------------------------------------------
+// Function to encode a string for insertionmin XML
+
+  public static String xmlEncode(String value) {
+
+    value = value.replaceAll("&", "&#x26;");
+    value = value.replaceAll("<", "&#x60;");
+    value = value.replaceAll(">", "&#x62;");
+
+    return value;
+
+  }
+
+// ---------------------------------------------------
+// Function to convert a map to a string
 
   public static String mapToString(Map<String,String> map) {
 
@@ -1327,6 +1549,29 @@ public class Utils {
     }
 
     return data.toString();
+
+  }
+
+// ---------------------------------------------------
+// Function to convert a query string to a map of the query parameters
+
+  public static Map<String,String> queryToMap(String query) {
+
+    Map<String,String> params = new HashMap<String,String>();
+    String[] queryParams = query.split("&");
+    String[] parts;
+    for (int i = 0; i < queryParams.length; i++) {
+      parts = queryParams[i].split("=", 2);
+      if (parts[0].length() > 0) {
+        if (parts.length < 2) {
+          params.put(parts[0], "");
+        } else {
+          params.put(parts[0], parts[1]);
+        }
+      }
+    }
+
+    return params;
 
   }
 

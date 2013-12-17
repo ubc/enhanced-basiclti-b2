@@ -38,8 +38,9 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12  Added methods for grade column options and custom parameters
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.io.IOException;
 
@@ -176,6 +177,12 @@ public class Tool {
 
   }
 
+  public String getDescription() {
+
+    return this.getToolSetting(Constants.TOOL_DESCRIPTION);
+
+  }
+
   public String getUrl() {
 
     return this.getToolSetting(Constants.TOOL_URL);
@@ -240,6 +247,18 @@ public class Tool {
     }
 
     return secret;
+
+  }
+
+  public String getConfig() {
+
+    return this.getToolSetting(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG, Constants.DATA_FALSE);
+
+  }
+
+  public String getDashboard() {
+
+    return this.getToolSetting(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_DASHBOARD, Constants.DATA_FALSE);
 
   }
 
@@ -401,7 +420,7 @@ public class Tool {
 
   public String getDisplayIcon() {
 
-    String icon = null;
+    String icon;
     if (this.byUrl) {
       icon = this.getToolSetting(false, true, Constants.TOOL_ICON, "");
     } else {
@@ -412,10 +431,6 @@ public class Tool {
 
   }
 
-  public boolean isEncryptData() {
-	  return this.getToolSetting(Constants.TOOL_ENCRYPT_DATA).equals("true");
-  }
-  
   public String getOpenIn() {
 
     return this.getToolSetting(Constants.TOOL_OPEN_IN, Constants.DATA_FRAME);
@@ -432,7 +447,7 @@ public class Tool {
         if (!this.byUrl) {
           windowName = this.id;
         } else if (this.domain != null) {
-          windowName = this.domain.id;
+          windowName = this.domain.getId();
         } else {
           windowName = Constants.DATA_BLANK_WINDOW_NAME;
         }
@@ -736,6 +751,12 @@ public class Tool {
 
   }
 
+  public String getHasService(String id) {
+
+    return this.getToolSetting(Constants.SERVICE_PARAMETER_PREFIX + "." + id, Constants.DATA_FALSE);
+
+  }
+
   public String getSendUUID() {
 
     return this.getToolSetting(false, true, Constants.TOOL_EXT_UUID, "");
@@ -745,7 +766,7 @@ public class Tool {
   public String getSendExtensions() {
 
     StringBuilder extensions = new StringBuilder();
-    String setting = "";
+    String setting;
     String value = this.getOutcomesService();
     if (this.b2Context.getSetting(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_FALSE).equals(Constants.DATA_FALSE)) {
       setting = "x";
@@ -758,7 +779,6 @@ public class Tool {
       setting = "o";
     }
     extensions.append("<span title=\"").append(b2Context.getResourceString("extension.alt.outcomes." + value)).append("\">").append(setting).append("</span>&nbsp;&nbsp;");
-    setting = "";
     value = this.getMembershipsService();
     if (this.b2Context.getSetting(Constants.TOOL_EXT_MEMBERSHIPS, Constants.DATA_FALSE).equals(Constants.DATA_FALSE)) {
       setting = "x";
@@ -771,7 +791,6 @@ public class Tool {
       setting = "m";
     }
     extensions.append("<span title=\"").append(b2Context.getResourceString("extension.alt.memberships." + value)).append("\">").append(setting).append("</span>&nbsp;&nbsp;");
-    setting = "";
     value = this.getSettingService();
     if (this.b2Context.getSetting(Constants.TOOL_EXT_SETTING, Constants.DATA_FALSE).equals(Constants.DATA_FALSE)) {
       setting = "x";
@@ -958,8 +977,8 @@ public class Tool {
   public String getDoSendExtensions() {
 
     StringBuilder extensions = new StringBuilder();
-    String setting = "";
-    String value = "";
+    String setting;
+    String value;
     if (this.getDoSendOutcomesService()) {
       setting = "O";
       value = Constants.DATA_MANDATORY;

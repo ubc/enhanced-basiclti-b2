@@ -38,6 +38,7 @@
       2.3.0  5-Nov-12  Added option to create grade center column
       2.3.1 17-Dec-12  Added grade column options
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13  Added "Submit and launch" option
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -47,6 +48,7 @@
                 java.util.ArrayList,
                 java.util.Iterator,
                 java.util.UUID,
+                java.net.URLEncoder,
                 blackboard.platform.persistence.PersistenceServiceFactory,
                 blackboard.persist.BbPersistenceManager,
                 blackboard.persist.Id,
@@ -63,11 +65,11 @@
                 blackboard.platform.coursecontent.GroupAssignment,
                 blackboard.servlet.data.MultiSelectBean,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Gradebook,
+                org.oscelot.blackboard.lti.Gradebook,
                 org.oscelot.blackboard.utils.GroupContent,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Tool,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:learningSystemPage title="${bundle['page.content.tool.title']}">
@@ -241,8 +243,16 @@
     if (domainError) {
       error = b2Context.getResourceString("page.content.modify.nodomain.warning");
     }
-    cancelUrl = b2Context.setReceiptOptions(cancelUrl,
-       b2Context.getResourceString("page.receipt.success"), error);
+
+    if (b2Context.getRequestParameter("launch", Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+      cancelUrl = "/webapps/blackboard/content/contentWrapper.jsp" +
+                  "?content_id=" + contentId + "&course_id=" + courseId + "&navItem=content" +
+                  "&displayName=" + URLEncoder.encode(name, "UTF-8") +
+                  "&href=" + URLEncoder.encode(b2Context.getPath() + "tool.jsp?course_id=" + courseId + "&content_id=" + contentId, "UTF-8");
+    } else {
+      cancelUrl = b2Context.setReceiptOptions(cancelUrl,
+         b2Context.getResourceString("page.receipt.success"), error);
+    }
     response.sendRedirect(cancelUrl);
 
   } else {
@@ -349,6 +359,16 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="${iconUrl}" title="${bundle['page.content.modify.title']}${titleSuffix}" />
   </bbNG:pageHeader>
+<bbNG:jsBlock>
+<script language="javascript" type="text/javascript">
+function doLaunch() {
+  var el = document.getElementById('id_launch');
+  el.value = 'true';
+  document.frmModify.submit();
+  return true;
+}
+</script>
+</bbNG:jsBlock>
   <bbNG:form name="frmModify" action="modify.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return validateForm();">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.content.modify.step1.title']}" instructions="${bundle['page.content.modify.step1.instructions']}">
@@ -547,7 +567,11 @@
         <bbNG:multiSelect widgetName="<%=Constants.GROUPS_PARAMETER_NAME%>" sourceTitle="${bundle['page.content.modify.step3.groups.unselected.label']}" sourceCollection="${unassignedGroups}" destCollection="${assignedGroups}" destTitle="${bundle['page.content.modify.step3.groups.selected.label']}" formName="frmModify" />
       </bbNG:dataElement>
     </bbNG:step>
-    <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="<%=cancelUrl%>" />
+    <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="<%=cancelUrl%>">
+      <input type="hidden" name="launch" id="id_launch" value="false" />
+      <bbNG:stepSubmitButton label="${bundle['button.submitandlaunch.label']}" onClick="return doLaunch();" />
+      <bbNG:stepSubmitButton label="${bundle['button.submit.label']}" primary="true" />
+    </bbNG:stepSubmit>
   </bbNG:dataCollection>
   </bbNG:form>
 </bbNG:learningSystemPage>

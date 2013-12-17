@@ -35,9 +35,10 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
-<%@page import="org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Tool,
+<%@page import="org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Tool,
                 com.spvsoftwareproducts.blackboard.utils.B2Context"
         errorPage="error.jsp"%>
 <%

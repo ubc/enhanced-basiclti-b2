@@ -26,8 +26,9 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.util.Map;
 import java.util.Iterator;
@@ -49,18 +50,22 @@ public class ToolsAction extends HttpServlet {
   protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
     B2Context b2Context = new B2Context(request);
-
     String action = b2Context.getRequestParameter(Constants.ACTION, "");
     String[] ids = request.getParameterValues(Constants.TOOL_ID);
     boolean isDomain = b2Context.getRequestParameter(Constants.DOMAIN_PARAMETER_PREFIX, "").length() > 0;
-
+    boolean isService = b2Context.getRequestParameter(Constants.SERVICE_PARAMETER_PREFIX, "").length() > 0;
     ToolList toolList = new ToolList(b2Context, true, isDomain);
 
     String redirectUrl;
     String prefix;
+    String suffix = "." + Constants.TOOL_NAME;
     if (isDomain) {
       redirectUrl = "domains.jsp";
       prefix = Constants.DOMAIN_PARAMETER_PREFIX;
+    } else if (isService) {
+      redirectUrl = "services.jsp";
+      prefix = Constants.SERVICE_PARAMETER_PREFIX;
+      suffix = "";
     } else {
       redirectUrl = "tools.jsp";
       prefix = Constants.TOOL_PARAMETER_PREFIX;
@@ -71,18 +76,19 @@ public class ToolsAction extends HttpServlet {
 
     boolean saveGlobal = false;
     boolean saveLocal = false;
+    String toolId;
     for (int i = 0; i < ids.length; i++) {
-      String toolId = ids[i];
+      toolId = ids[i];
       String toolSettingPrefix = prefix + "." + toolId;
-      boolean isTool = (b2Context.getSetting(toolSettingPrefix + "." + Constants.TOOL_NAME).length() > 0) ||
-                       (b2Context.getSetting(false, true, toolSettingPrefix + "." + Constants.TOOL_NAME).length() > 0);
-      if (isTool) {
-        boolean isLocal = !isDomain && toolId.startsWith(Constants.COURSE_TOOL_PREFIX);
+      boolean exists = (b2Context.getSetting(toolSettingPrefix + suffix, "").length() > 0) ||
+                       (b2Context.getSetting(false, true, toolSettingPrefix + suffix, "").length() > 0);
+      if (exists) {
+        boolean isLocal = !isDomain && !isService && toolId.startsWith(Constants.COURSE_TOOL_PREFIX);
         if (action.equals(Constants.ACTION_ENABLE)) {
           if (!b2Context.getSetting(toolSettingPrefix, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
             b2Context.setSetting(toolSettingPrefix, Constants.DATA_TRUE);
             saveGlobal = true;
-            if (!isDomain) {
+            if (!isDomain && !isService) {
               doMenuAvailable(b2Context, toolId, true);
             }
           }
@@ -90,17 +96,31 @@ public class ToolsAction extends HttpServlet {
           if (b2Context.getSetting(toolSettingPrefix, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
             b2Context.setSetting(toolSettingPrefix, Constants.DATA_FALSE);
             saveGlobal = true;
-            if (!isDomain) {
+            if (!isDomain && !isService) {
               doMenuAvailable(b2Context, toolId, false);
               doCourseToolDelete(b2Context, toolId);
-            } else {
+            } else if (isDomain) {
               Utils.doCourseToolsDelete(b2Context, toolId);
             }
           }
+        } else if (action.equals(Constants.ACTION_SIGNED)) {
+          if (b2Context.getSetting(toolSettingPrefix + "." + Constants.SERVICE_UNSIGNED, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+            b2Context.setSetting(toolSettingPrefix + "." + Constants.SERVICE_UNSIGNED, Constants.DATA_FALSE);
+            saveGlobal = true;
+          }
+        } else if (action.equals(Constants.ACTION_UNSIGNED)) {
+          if (!b2Context.getSetting(toolSettingPrefix + "." + Constants.SERVICE_UNSIGNED, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+            b2Context.setSetting(toolSettingPrefix + "." + Constants.SERVICE_UNSIGNED, Constants.DATA_TRUE);
+            saveGlobal = true;
+          }
         } else if (action.equals(Constants.ACTION_DELETE)) {
-          doMenuDelete(b2Context, toolId);
-          doCourseToolDelete(b2Context, toolId);
-          toolList.deleteTool(toolId);
+          if (!isService) {
+            Tool tool = new Tool(b2Context, toolId);
+            doMashupDelete(b2Context, tool);
+            doMenuDelete(b2Context, tool);
+            doCourseToolDelete(b2Context, tool);
+            toolList.deleteTool(toolId);
+          }
           Map<String,String> settings = b2Context.getSettings(!isLocal, true);
           for (Iterator<String> iter2 = settings.keySet().iterator(); iter2.hasNext();) {
             String setting = iter2.next();
@@ -177,9 +197,16 @@ public class ToolsAction extends HttpServlet {
 
   }
 
-  private void doMenuDelete(B2Context b2Context, String toolId) {
+  private void doMashupDelete(B2Context b2Context, Tool tool) {
 
-    Tool tool = new Tool(b2Context, toolId);
+    if (B2Context.getIsVersion(9, 1, 0)) {
+      Utils.checkVTBEMashup(b2Context, false, tool.getId(), null, null);
+    }
+
+  }
+
+  private void doMenuDelete(B2Context b2Context, Tool tool) {
+
     MenuItem menuItem = tool.getMenuItem();
     if (menuItem != null) {
       menuItem.delete();
@@ -200,6 +227,12 @@ public class ToolsAction extends HttpServlet {
   private void doCourseToolDelete(B2Context b2Context, String toolId) {
 
     Tool tool = new Tool(b2Context, toolId);
+    doCourseToolDelete(b2Context, tool);
+
+  }
+
+  private void doCourseToolDelete(B2Context b2Context, Tool tool) {
+
     CourseTool courseTool = tool.getCourseTool();
     if (courseTool != null) {
       courseTool.delete();

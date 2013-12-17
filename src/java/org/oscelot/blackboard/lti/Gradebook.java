@@ -21,17 +21,18 @@
     Version history:
       1.2.0 17-Sep-11  Added to provide support for outcomes extension service
       1.2.1 10-Oct-11
-      1.2.2 10-Oct-11
+      1.2.2 10-Oct-11  Added fix for creating columns in 9.1SP4 and earlier
       1.2.3 14-Oct-11
       2.0.0 29-Jan-12
       2.0.1 20-May-12
       2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
+      2.2.0  2-Sep-12  Name columns same as content item
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12  Added grade column options
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
-package org.oscelot.blackboard.basiclti;
+package org.oscelot.blackboard.lti;
 
 import java.util.Calendar;
 import java.util.logging.Level;
@@ -39,6 +40,8 @@ import java.util.logging.Logger;
 
 import blackboard.base.BbList;
 import blackboard.platform.persistence.PersistenceServiceFactory;
+import blackboard.data.content.Content;
+import blackboard.persist.content.ContentDbLoader;
 import blackboard.data.gradebook.Lineitem;
 import blackboard.data.course.CourseMembership;
 import blackboard.data.user.User;
@@ -49,6 +52,7 @@ import blackboard.persist.gradebook.ext.OutcomeDefinitionScaleDbLoader;
 import blackboard.data.gradebook.impl.OutcomeDefinitionScale;
 import blackboard.persist.gradebook.ext.OutcomeDefinitionCategoryDbLoader;
 import blackboard.data.gradebook.impl.OutcomeDefinitionCategory;
+import blackboard.platform.gradebook2.impl.GradableItemDAO;
 import blackboard.persist.BbPersistenceManager;
 import blackboard.persist.Id;
 import blackboard.persist.gradebook.LineitemDbLoader;
@@ -63,7 +67,7 @@ import blackboard.persist.PersistenceException;
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
 
-public class Gradebook_v90 {
+public class Gradebook {
 
 // ---------------------------------------------------
 // Function to update a user's gradebook column linked to a content item with the current date
@@ -72,9 +76,8 @@ public class Gradebook_v90 {
   public static boolean updateGradebook(User user, Lineitem lineitem, String columnType, String columnValue) {
 
     boolean ok = true;
-
     BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
-    Score score = getScore(lineitem, user.getId(),(columnValue.length() > 0));
+    Score score = getScore(lineitem, user.getId(), (columnValue.length() > 0));
     if (score != null) {
       if (columnValue.length() > 0) {
         columnValue = columnValue.trim();
@@ -139,7 +142,6 @@ public class Gradebook_v90 {
              OutcomeDefinitionScale.TEXT.startsWith(type);
         }
       }
-
       if (ok) {
         score.setGrade(columnValue);
         if (OutcomeDefinitionScale.LETTER.startsWith(lineitem.getOutcomeDefinition().getScale().getTitle())) {
@@ -184,7 +186,7 @@ public class Gradebook_v90 {
 // Function to retrieve the gradebook column linked to a content item, optionally creating
 // the column if it does not exist
 
-  public static Lineitem getColumn(B2Context b2Context, String toolId, String scaleType, Integer points,
+  public static Lineitem getColumn(B2Context b2Context, String toolId, String toolName, String scaleType, Integer points,
      boolean scorable, boolean visible, String value, boolean doCreate) {
 
     boolean ok = true;
@@ -192,9 +194,15 @@ public class Gradebook_v90 {
     Id courseId = b2Context.getContext().getCourseId();
     Id contentId = b2Context.getContext().getContentId();
 
+    String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + ".";
+    if (toolId.length() > 0) {
+      toolSettingPrefix += toolId + ".";
+    }
+    String toolSettingPrefix0 = Constants.TOOL_PARAMETER_PREFIX + ".";  // old name used for setting
     String colName = Constants.COLUMN_PREFIX;
     if (contentId.equals(Id.UNSET_ID)) {
-      colName += "_" + toolId;
+      toolSettingPrefix0 += toolId + ".";
+      colName += "_" + toolId; //.replace('!', '_');
     } else {
       colName += contentId.toExternalString();
     }
@@ -202,7 +210,7 @@ public class Gradebook_v90 {
     Lineitem lineitem = null;
     LineitemDbLoader lineitemLoader = null;
     LineitemDbPersister lineitemdbpersister = null;
-    OutcomeDefinition def = null;
+    OutcomeDefinition def;
 
     BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
     try {
@@ -213,7 +221,33 @@ public class Gradebook_v90 {
       ok = false;
     }
     if (ok) {
-      lineitem = loadColumn(lineitemLoader, courseId, colName);
+      String lineitemId0Str = b2Context.getSetting(false, true, toolSettingPrefix0 + Constants.TOOL_LINEITEM, "");
+      String lineitemIdStr = b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_LINEITEM, lineitemId0Str);
+      if (b2Context.getContext().hasContentContext()) {
+// Delete any existing line item setting values
+        if ((lineitemId0Str.length() > 0) ||(lineitemId0Str.length() > 0)) {
+          b2Context.setSetting(false, true, toolSettingPrefix0 + Constants.TOOL_LINEITEM, null);
+          b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_LINEITEM, null);
+          b2Context.persistSettings(false, true);
+        }
+        Id lineitemId = Utils.getLineItemIdByContentId(b2Context.getContext().getContentId());
+        lineitem = loadColumn(lineitemLoader, lineitemId);
+      } else if (lineitemIdStr.length() > 0) {
+        lineitem = loadColumn(bbPm, lineitemLoader, lineitemIdStr);
+// Delete any old style existing line item setting value
+        if (lineitemId0Str.length() > 0) {
+          b2Context.setSetting(false, true, toolSettingPrefix0 + Constants.TOOL_LINEITEM, null);
+          b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_LINEITEM, lineitemIdStr);
+          b2Context.persistSettings(false, true);
+        }
+      } else {
+        lineitem = loadColumn(lineitemLoader, courseId, colName);
+        if (lineitem != null) {
+          b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_LINEITEM, lineitem.getId().toExternalString());
+          b2Context.persistSettings(false, true);
+        }
+      }
+
       if ((lineitem == null) && doCreate) {
         try {
           String scaleTitle = OutcomeDefinitionScale.TEXT;
@@ -243,7 +277,7 @@ public class Gradebook_v90 {
           if ((points != null) && (Float.compare(points.floatValue(), pointsPossible) != 0)) {
             pointsPossible = points.floatValue();
           }
-          OutcomeDefinitionCategory category = null;
+          OutcomeDefinitionCategory category;
           try {
             OutcomeDefinitionCategoryDbLoader odcLoader = (OutcomeDefinitionCategoryDbLoader)bbPm.getLoader("OutcomeDefinitionCategoryDbLoader");
             category = odcLoader.loadByCourseIdAndTitle(courseId, b2Context.getResourceString("ext.gradecenter.category.title"));
@@ -268,15 +302,23 @@ public class Gradebook_v90 {
           def = new OutcomeDefinition();
           def.setCourseId(courseId);
           def.setCategory(category);
-
           def.setScorable(scorable);
           def.setWeight(0.0f);
           def.setVisible(visible);
           def.setIgnoreUnscoredAttempts(true);
-          def.setTitle(colName);
           def.setPossible(pointsPossible);
-          def.setPosition(999);
-
+          if (!B2Context.getIsVersion(9, 1, 6)) {
+            GradableItemDAO gi = GradableItemDAO.get();
+            gi.loadCourseGradebook(courseId, 0L);
+            def.setPosition(gi.getMaxPosition(courseId) + 1);
+          }
+          String title = toolName;
+          if (!contentId.equals(Id.UNSET_ID)) {
+            ContentDbLoader courseDocumentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
+            Content content = courseDocumentLoader.loadById(contentId);
+            title = content.getTitle();
+          }
+          def.setTitle(title);
           try {
             OutcomeDefinitionScaleDbLoader odsLoader = (OutcomeDefinitionScaleDbLoader)bbPm.getLoader("OutcomeDefinitionScaleDbLoader");
             OutcomeDefinitionScale scale = odsLoader.loadByCourseIdAndTitle(courseId, scaleTitle);
@@ -287,6 +329,7 @@ public class Gradebook_v90 {
             OutcomeDefinitionDbPersister odPersister = (OutcomeDefinitionDbPersister)bbPm.getPersister("OutcomeDefinitionDbPersister");
             odPersister.persist(def);
           } catch (KeyNotFoundException e) {
+            Logger.getLogger(Gradebook.class.getName()).log(Level.WARNING, e.getMessage(), e);
           }
           lineitem = new Lineitem(def);
           lineitem.setType(b2Context.getResourceString("ext.gradecenter.category.title"));
@@ -299,8 +342,12 @@ public class Gradebook_v90 {
         } catch (PersistenceException e) {
         }
         if (ok) {
-          lineitem = loadColumn(lineitemLoader, courseId, colName);
+          lineitem = loadColumn(lineitemLoader, lineitem.getId());
           ok = lineitem != null;
+        }
+        if (ok) {
+          b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_LINEITEM, lineitem.getId().toExternalString());
+          b2Context.persistSettings(false, true);
         }
       }
     }
@@ -322,7 +369,7 @@ public class Gradebook_v90 {
 
     if (lineitem != null) {
 
-      boolean ok = true;
+      boolean ok;
 
       CourseMembership coursemembership = null;
       BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
@@ -357,6 +404,38 @@ public class Gradebook_v90 {
 
   }
 
+  private static Lineitem loadColumn(BbPersistenceManager bbPm, LineitemDbLoader lineitemLoader, String lineitemId) {
+
+    Lineitem lineitem = null;
+    try {
+      Id id = bbPm.generateId(Lineitem.LINEITEM_DATA_TYPE, lineitemId);
+      lineitem = loadColumn(lineitemLoader, id);
+    } catch (PersistenceException e) {
+      Logger.getLogger(Gradebook.class.getName()).log(Level.SEVERE, null, e);
+      lineitem = null;
+    }
+
+    return lineitem;
+
+  }
+
+  private static Lineitem loadColumn(LineitemDbLoader lineitemLoader, Id id) {
+
+    Lineitem lineitem;
+    try {
+      lineitem = lineitemLoader.loadById(id);
+    } catch (KeyNotFoundException e) {
+      Logger.getLogger(Gradebook.class.getName()).log(Level.INFO, null, e);
+      lineitem = null;
+    } catch (PersistenceException e) {
+      Logger.getLogger(Gradebook.class.getName()).log(Level.SEVERE, null, e);
+      lineitem = null;
+    }
+
+    return lineitem;
+
+  }
+
   private static Lineitem loadColumn(LineitemDbLoader lineitemLoader, Id id, String colName) {
 
     Lineitem lineitem = null;
@@ -364,8 +443,10 @@ public class Gradebook_v90 {
       BbList<Lineitem> lineitems = lineitemLoader.loadByCourseIdAndLineitemName(id, colName);
       if (!lineitems.isEmpty()) {
         lineitem = lineitems.get(0);
+      } else {
       }
     } catch (KeyNotFoundException e) {
+      Logger.getLogger(Gradebook.class.getName()).log(Level.INFO, null, e);
       lineitem = null;
     } catch (PersistenceException e) {
       Logger.getLogger(Gradebook.class.getName()).log(Level.SEVERE, null, e);

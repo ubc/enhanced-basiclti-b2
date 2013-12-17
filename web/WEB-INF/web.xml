@@ -2,19 +2,15 @@
 <web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
     <servlet>
         <servlet-name>Reorder</servlet-name>
-        <servlet-class>org.oscelot.blackboard.basiclti.Reorder</servlet-class>
+        <servlet-class>org.oscelot.blackboard.lti.Reorder</servlet-class>
     </servlet>
     <servlet>
         <servlet-name>ToolsAction</servlet-name>
-        <servlet-class>org.oscelot.blackboard.basiclti.ToolsAction</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>AvailableTool</servlet-name>
-        <servlet-class>org.oscelot.blackboard.basiclti.AvailableTool</servlet-class>
+        <servlet-class>org.oscelot.blackboard.lti.ToolsAction</servlet-class>
     </servlet>
     <servlet>
         <servlet-name>ToolXml</servlet-name>
-        <servlet-class>org.oscelot.blackboard.basiclti.ToolXml</servlet-class>
+        <servlet-class>org.oscelot.blackboard.lti.ToolXml</servlet-class>
     </servlet>
     <servlet>
         <servlet-name>Extension</servlet-name>
@@ -23,6 +19,10 @@
     <servlet>
         <servlet-name>Service</servlet-name>
         <servlet-class>org.oscelot.blackboard.basiclti.services.Controller</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>Services</servlet-name>
+        <servlet-class>org.oscelot.blackboard.lti.services.Controller</servlet-class>
     </servlet>
     <servlet-mapping>
         <servlet-name>Reorder</servlet-name>
@@ -45,10 +45,6 @@
         <url-pattern>/course/toolsaction</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
-        <servlet-name>AvailableTool</servlet-name>
-        <url-pattern>/course/availabletool</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
         <servlet-name>ToolXml</servlet-name>
         <url-pattern>/toolxml</url-pattern>
     </servlet-mapping>
@@ -59,6 +55,10 @@
     <servlet-mapping>
         <servlet-name>Service</servlet-name>
         <url-pattern>/service</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>Services</servlet-name>
+        <url-pattern>/lti/*</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>

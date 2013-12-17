@@ -6,6 +6,7 @@
     <handle value="BasicLTI" />
     <default-locale value="en_US" />
 	  <version value="3.0.1" />
+    <webapp-type value="javaext" />
 	  <requires>
  	    <bbversion value="9.0.0" />
 	  </requires>
@@ -16,8 +17,7 @@
 	    <description value="plugin.vendor.description" />
 	  </vendor>
 	  <http-actions>
-  		<create value="system/create.jsp" />
-  		<config value="system/tools.jsp?config=y" />
+  		<config value="system/tools.jsp?lti_page=tools" />
   		<remove value="system/remove.jsp" />
 	  </http-actions>
 	  <application-defs>
@@ -91,6 +91,7 @@
 			<permission type="persist" name="OutcomeDefinitionScale" actions="create,modify" />
       <permission type="persist" name="GroupAssignment" actions="create,delete" />
       <permission type="persist" name="ContentHandler" actions="create,modify,delete" />
+      <permission type="java.lang.reflect.ReflectPermission" name="suppressAccessChecks" />
     </permissions>
   </plugin>
 </manifest>

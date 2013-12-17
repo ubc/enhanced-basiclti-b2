@@ -26,20 +26,18 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.basiclti.services;
 
 import java.util.Map;
-import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import java.net.URLDecoder;
-
-import java.io.UnsupportedEncodingException;
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -55,6 +53,7 @@ import net.oauth.OAuthConsumer;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthValidator;
 import net.oauth.SimpleOAuthValidator;
+import net.oauth.OAuthException;
 
 import blackboard.platform.context.Context;
 import blackboard.platform.context.ContextManagerFactory;
@@ -64,9 +63,9 @@ import blackboard.persist.Id;
 import blackboard.persist.PersistenceException;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Constants;
-import org.oscelot.blackboard.basiclti.Utils;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Constants;
+import org.oscelot.blackboard.lti.Utils;
 
 
 public class Controller extends HttpServlet {
@@ -88,7 +87,7 @@ public class Controller extends HttpServlet {
     this.response.setConsumerRef(String.valueOf(System.currentTimeMillis()));
     String description = "ext.codeminor.request";
     OAuthMessage message = OAuthServlet.getMessage(request, null);
-    Map<String,String> authHeaders = getAuthorizationHeaders(message);
+    Map<String,String> authHeaders = Utils.getAuthorizationHeaders(message);
     String consumerKey = authHeaders.get("oauth_consumer_key");
 
     String xml = message.readBodyAsString();
@@ -241,48 +240,19 @@ public class Controller extends HttpServlet {
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     OAuthValidator validator = new SimpleOAuthValidator();
     try {
-      validator.validateMessage(message, oAuthAccessor);
-    } catch (Exception e) {
+      message.validateMessage(oAuthAccessor, validator);
+    } catch (IOException e) {
+      Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
+      ok = false;
+    } catch (URISyntaxException e) {
+      Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
+      ok = false;
+    } catch (OAuthException e) {
       Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
       ok = false;
     }
 
     return ok;
-
-  }
-
-// ---------------------------------------------------
-// Function to get the authorization headers from a request
-
-  private Map<String,String> getAuthorizationHeaders(OAuthMessage message) {
-
-    Map<String,String> headers = new HashMap<String,String>();
-
-    try {
-      String[] authHeaders = message.getAuthorizationHeader("").split(", ");
-      for (int i = 0; i < authHeaders.length; i++) {
-        String[] header = authHeaders[i].split("=");
-        if (header.length == 2) {
-          String name = header[0].trim();
-          String value = header[1].trim();
-          if (value.equals("\"\"")) {
-            value = "";
-          } else if ((value.length() > 2) && value.startsWith("\"")) {
-            value = value.substring(1, value.length() - 1);
-          }
-          try {
-            name = URLDecoder.decode(name, "UTF-8");
-            value = URLDecoder.decode(value, "UTF-8");
-          } catch (UnsupportedEncodingException e) {
-          }
-          headers.put(name, value);
-        }
-      }
-    } catch (IOException e) {
-      headers.clear();
-    }
-
-    return headers;
 
   }
 

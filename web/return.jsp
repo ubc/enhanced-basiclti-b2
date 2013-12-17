@@ -37,6 +37,7 @@
       2.3.0  5-Nov-12  Added support for launches from a module outside a course
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -46,9 +47,9 @@
                 blackboard.persist.Id,
                 blackboard.platform.persistence.PersistenceServiceFactory,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Tool,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"%>
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <%
   Utils.checkForModule(request);
@@ -103,8 +104,15 @@
     } else {
       if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE)) {
         url = "course/";
+      } else if (sourcePage.equals(Constants.ADMIN_PAGE)) {
+        url = "system/";
       }
-      url += "tools.jsp?" + Utils.getQuery(request);
+      String query = "&" + Utils.getQuery(request);
+      query = query.replaceAll("&" + Constants.PAGE_PARAMETER_NAME+ "=[^&]*", "");
+      if (query.length() > 0) {
+        query = query.substring(1);
+      }
+      url += "tools.jsp?" + query;
     }
     url = b2Context.setReceiptOptions(url, ltiMessage, ltiError);
   }
@@ -112,6 +120,7 @@
   String onload = "";
   if (!openInWindow && !openInParent) {
     response.sendRedirect(url);
+    return;
   } else if (openInParent) {
     onload = "doAction()";
   } else if ((ltiMessage.length() > 0) || (ltiError.length() > 0)) {

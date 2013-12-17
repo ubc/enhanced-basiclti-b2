@@ -26,6 +26,7 @@
       2.3.0  5-Nov-12
       2.3.1 17-Dec-12
       2.3.2  3-Apr-13
+      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.basiclti.services;
 
@@ -52,11 +53,11 @@ import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Utils;
-import org.oscelot.blackboard.basiclti.Gradebook;
-import org.oscelot.blackboard.basiclti.Gradebook_v90;
-import org.oscelot.blackboard.basiclti.Constants;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Utils;
+import org.oscelot.blackboard.lti.Gradebook;
+import org.oscelot.blackboard.lti.Gradebook_v90;
+import org.oscelot.blackboard.lti.Constants;
 
 
 public class Outcome implements Action {
@@ -67,15 +68,13 @@ public class Outcome implements Action {
   public boolean execute(String actionName, B2Context b2Context, Tool tool,
      Element xmlBody, List<String> serviceData, Response response) {
 
-    boolean ok = true;
-
     boolean isV90 = !B2Context.getIsVersion(9, 1, 0);
 
     String resultSourcedId = Utils.getXmlChildValue(xmlBody, "sourcedId");
 
     String description = b2Context.getResourceString("ext.codeminor.success");
 
-    ok = tool.getSendUserId().equals(Constants.DATA_MANDATORY);
+    boolean ok = tool.getSendUserId().equals(Constants.DATA_MANDATORY);
     if (!ok) {
       description = b2Context.getResourceString("ext.codeminor.notavailable");
     }
@@ -134,7 +133,7 @@ public class Outcome implements Action {
       }
     }
 // Perform requested action
-    String value = null;
+    String value;
     if (ok) {
       value = Utils.getXmlChildValue(xmlBody, "textString");
       Lineitem lineitem = null;
@@ -169,14 +168,13 @@ public class Outcome implements Action {
           ok = Gradebook.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, "");
         }
         if (ok) {
-          value = null;
           description = b2Context.getResourceString("svc.codeminor.outcome.deleted");
         } else {
           Logger.getLogger(Outcome.class.getName()).log(Level.SEVERE, "Error in Gradebook.updateGradebook");
           description = b2Context.getResourceString("ext.codeminor.system");
         }
       } else if (actionName.equals(Constants.SVC_OUTCOME_READ)) {
-        Score score = null;
+        Score score;
         if (isV90) {
           score = Gradebook_v90.getScore(lineitem, user.getId(), false);
         } else {
