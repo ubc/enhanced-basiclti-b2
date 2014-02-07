@@ -5,3 +5,7 @@ bin
 .project
 .settings
 .idea
+out
+*.iml
+*.ipr
+*.iws
