@@ -3,22 +3,13 @@ package ca.ubc.ctlt.encryption;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 
-import java.io.UnsupportedEncodingException;
-
-
-import java.security.*;
-import java.util.Arrays;
-import javax.crypto.*;
+import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.Key;
 
 /**
- * Created with IntelliJ IDEA.
- * User: Ronald
- * Date: 2013-10-21
- * Time: 5:30 PM
- * To change this template use File | Settings | File Templates.
+ * Encryption instance
  */
-
 public class Encryption {
     private final String ALGO = "AES";
     private final byte[] keyValue =
