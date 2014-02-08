@@ -33,4 +33,5 @@ Documentation: http://www.spvsoftwareproducts.com/
     Changes:
     - A new package (ca.ubc.ctlt.encryption), that includes two new classes, has been added to handle the de- and encryption.
     - Membership.java and Outcomes.java have been modified to include encryption.
-    - tool.jsp has been modified to include an option to enable encryption for each tool individually.
+    - data.jsp has been modified to include an option to enable encryption for each tool individually.
+    - Added simple test for encryption/decryption.
