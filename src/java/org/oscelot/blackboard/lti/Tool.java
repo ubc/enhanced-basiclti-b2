@@ -434,6 +434,10 @@ public class Tool {
   public boolean isEncryptData() {
 	  return this.getToolSetting(Constants.TOOL_ENCRYPT_DATA).equals("true");
   }
+
+  public String getEncryptSalt() {
+      return this.getToolSetting(Constants.TOOL_ENCRYPT_SALT, "");
+  }
   
   public String getOpenIn() {
 

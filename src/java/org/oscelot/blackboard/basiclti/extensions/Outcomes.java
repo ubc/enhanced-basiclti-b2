@@ -73,6 +73,7 @@ public class Outcomes implements Action {
 
     boolean ok = true;
     Encryption encryptInstance = new Encryption();
+    encryptInstance.setSalt(tool.getEncryptSalt());
     String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
     boolean isV90 = (version[0].equals("9") && version[1].equals("0"));
 
@@ -89,18 +90,15 @@ public class Outcomes implements Action {
       }
     }
     BbPersistenceManager bbPm = null;
-// Load user object
+    // Load user object
     User user = null;
     if (ok) {
       bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
       String userId = serviceData.get(3);
-   // decrypt the user if necessary
-   		if (tool.isEncryptData()) {
-   			try {
-   				userId = encryptInstance.decrypt(userId);
-   			} catch (Exception e1) {
-   			}
-   		}
+      // decrypt the user if necessary
+      if (tool.isEncryptData()) {
+        userId = encryptInstance.decrypt(userId);
+      }
       try {
         UserDbLoader userdbloader = (UserDbLoader)bbPm.getLoader(UserDbLoader.TYPE);
         String userIdType = tool.getUserIdType();
@@ -262,10 +260,7 @@ public class Outcomes implements Action {
     	// re-encrypt the user
       	String encUser = user.getBatchUid();
   		if (tool.isEncryptData()) {
-  			try {
-  				encUser = encryptInstance.encrypt(encUser);
-  			} catch (Exception e) {
-  			}
+			encUser = encryptInstance.encrypt(encUser);
   		}
         StringBuilder xml = new StringBuilder();
         xml.append("  <result>\n");

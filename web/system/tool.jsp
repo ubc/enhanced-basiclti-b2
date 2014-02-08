@@ -169,7 +169,6 @@
     }
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CSS, b2Context.getRequestParameter(Constants.TOOL_CSS, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ICON, b2Context.getRequestParameter(Constants.TOOL_ICON, ""));
-    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_DATA, ""));
     if (ok && isNewTool) {
       String defaultToolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + Constants.DEFAULT_TOOL_ID + ".";
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_ID,
@@ -326,8 +325,6 @@
   params.put(Constants.TOOL_CSS, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_CSS));
   params.put(Constants.TOOL_ICON, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ICON));
 
-  params.put(Constants.TOOL_ENCRYPT_DATA, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA));
-
   boolean tabSetting = !tabXml;
 
   boolean outcomesEnabled = b2Context.getSetting("ext_outcomes", Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
@@ -335,7 +332,6 @@
   boolean settingEnabled = b2Context.getSetting("ext_setting", Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   boolean scorable = params.get(Constants.TOOL_EXT_OUTCOMES_SCORABLE).equals(Constants.DATA_TRUE);
   boolean visible = params.get(Constants.TOOL_EXT_OUTCOMES_VISIBLE).equals(Constants.DATA_TRUE);
-  boolean encrypt = params.get(Constants.TOOL_ENCRYPT_DATA).equals(Constants.DATA_TRUE);
   params.put("ext_outcomes" + params.get(Constants.TOOL_EXT_OUTCOMES), "true");
   params.put("ext_outcomes_format" + params.get(Constants.TOOL_EXT_OUTCOMES_FORMAT), "true");
   params.put("ext_memberships" + params.get(Constants.TOOL_EXT_MEMBERSHIPS), "true");
@@ -500,9 +496,6 @@
         </bbNG:dataElement>
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icon.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON%>" value="<%=params.get(Constants.TOOL_ICON)%>" size="80" helpText="${bundle['page.system.tool.step4.icon.instructions']}" />
-        </bbNG:dataElement>
-        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.encryption.label']}">
-			<bbNG:checkboxElement isSelected="<%=encrypt%>" name="<%=Constants.TOOL_ENCRYPT_DATA%>" value="true" helpText="${bundle['page.system.tool.step4.encryption.instructions']}" />
         </bbNG:dataElement>
       </bbNG:step>
     </bbNG:stepGroup>

@@ -93,6 +93,8 @@
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EMAIL, b2Context.getRequestParameter(Constants.TOOL_EMAIL, Constants.DATA_NOTUSED));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLES, b2Context.getRequestParameter(Constants.TOOL_ROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
+      b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_SALT, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_SALT, ""));
     for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
       CourseRole role = iter.next();
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(), b2Context.getRequestParameterValues(Constants.TOOL_ROLE + role.getIdentifier(), ""));
@@ -147,6 +149,8 @@
     params.put(Constants.TOOL_AVATAR, Constants.DATA_FALSE);
   }
   params.put(Constants.TOOL_ROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_ENCRYPT_DATA, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_ENCRYPT_SALT, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_SALT, ""));
   for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
     CourseRole role = iter.next();
     params.put(Constants.TOOL_ROLE + role.getIdentifier(), b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier()));
@@ -251,6 +255,12 @@
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.roles.label']}">
         <bbNG:checkboxElement isSelected="${params.roles}" name="<%=Constants.TOOL_ROLES%>" value="true" helpText="${bundle['page.system.data.step2.roles.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption.label']}">
+        <bbNG:checkboxElement isSelected="${params.encrypt_data}" name="<%=Constants.TOOL_ENCRYPT_DATA%>" value="true" helpText="${bundle['page.system.data.step2.encryption.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_salt.label']}">
+        <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_SALT%>" value="<%=params.get(Constants.TOOL_ENCRYPT_SALT)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_salt.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step3.title']}" instructions="${bundle['page.system.data.step3.instructions']}">

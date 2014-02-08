@@ -136,6 +136,7 @@ public class Constants {
   public static final String TOOL_MODULE = "mid";
   public static final String TOOL_COURSEID = "courseid";
   public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
+  public static final String TOOL_ENCRYPT_SALT = "encrypt_salt";
 
 // Message types
   public static final String MESSAGE_CONFIG = "config";

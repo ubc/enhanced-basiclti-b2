@@ -3,7 +3,7 @@ package ca.ubc.ctlt.encryption;
 import java.util.Properties;
 
 /**
- * Manages the actual ctlt.encryption and decription process
+ * Manages the actual ctlt.encryption and description process
  */
 
 public class EncryptManager {
@@ -12,6 +12,11 @@ public class EncryptManager {
     String[] propertyNames = {"user_id", "lis_person_name_given", "lis_person_name_family", "lis_person_name_full", "lis_person_contact_email_primary", "lis_person_sourcedid"};
 
     public Properties encrypt(Properties propObj) {
+        return encrypt(propObj, "");
+    }
+
+    public Properties encrypt(Properties propObj, String salt) {
+        encryptInstance.setSalt(salt);
         try {
             for (String property : propertyNames) {
                 if (propObj.getProperty(property) != null) {

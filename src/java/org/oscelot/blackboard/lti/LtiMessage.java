@@ -290,10 +290,10 @@ public class LtiMessage {
     
     //encrypt data when option is checked
     OAuthMessage oAuthMessage = null;
-    Properties ecryptProps = new Properties();
+    Properties ecryptProps;
     if (this.tool.isEncryptData()) {
       EncryptManager encrypt = new EncryptManager();
-      ecryptProps =  encrypt.encrypt(props);
+      ecryptProps =  encrypt.encrypt(props, this.tool.getEncryptSalt());
       oAuthMessage = new OAuthMessage("POST", url, ecryptProps.entrySet());
     }
     else {

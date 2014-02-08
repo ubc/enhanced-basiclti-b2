@@ -53,6 +53,7 @@ import blackboard.platform.user.MyPlacesUtil;
 
 import ca.ubc.ctlt.encryption.Encryption;
 
+import ca.ubc.ctlt.encryption.UserWrapper;
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import org.oscelot.blackboard.lti.Tool;
 import org.oscelot.blackboard.lti.Utils;
@@ -153,41 +154,21 @@ public class Memberships implements Action {
               StringBuilder member = new StringBuilder();
               String userIdType = tool.getUserIdType();
               String userId = null;
+
+              // replace the user object with UserWrapper, which will return encrypted values
+              // Overriding user object is bad, but this is a hack to minimize the changes to the code below
+              user = new UserWrapper(user, new Encryption(), tool.getEncryptSalt(), tool.isEncryptData());
+
               if (userIdType.equals(Constants.DATA_USERNAME)) {
                 userId = user.getUserName();
               } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
-                userId = user.getId().toExternalString();
+                userId = ((UserWrapper)user).getExternalId();
               } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
                 userId = user.getStudentId();
               } else {
                 userId = user.getBatchUid();
               }
-           // encrypt data if option is selected
-              String encUserId = userId;
-              String encBatchUid = user.getBatchUid();
-              String encEmail = user.getEmailAddress();
-              String encUserName = user.getGivenName();
-              String encFamilyName = user.getFamilyName();
-              String encFullname = "";
-              if (tool.getSendUsername().equals(Constants.DATA_MANDATORY)) {
-                  encFullname = user.getGivenName();
-                  if ((user.getMiddleName() != null) && (user.getMiddleName().length() > 0)) {
-                	  encFullname += " " + user.getMiddleName();
-                  }
-                  encFullname += " " + user.getFamilyName();
-              }
-              
-              if (tool.isEncryptData()) {
-            	  Encryption encryptInstance = new Encryption();
-            	  encUserId = encryptInstance.encrypt(encUserId);
-            	  encBatchUid = encryptInstance.encrypt(encBatchUid);
-            	  encUserName = encryptInstance.encrypt(encUserName);
-            	  encFamilyName = encryptInstance.encrypt(encFamilyName);
-            	  encFullname = encryptInstance.encrypt(encFullname);
-            	  String[] encEmailArr = encEmail.split("(?=@)");
-            	  encEmail = encEmailArr.length > 1 ? (encryptInstance.encrypt(encEmailArr[0]) + encEmailArr[1]) : "";
-              }
-              member = member.append("      <user_id>").append(encUserId).append("</user_id>\n");
+              member = member.append("      <user_id>").append(userId).append("</user_id>\n");
               try {
                 if (MyPlacesUtil.avatarsEnabled() && tool.getDoSendAvatar()) {
                   String image = null;
@@ -206,16 +187,16 @@ public class Memberships implements Action {
                 member = member.append("      <roles>").append(roles).append("</roles>\n");
               }
               if (tool.getDoSendUserSourcedid()) {
-                  member = member.append("      <person_sourcedid>").append(encBatchUid).append("</person_sourcedid>\n");
-                }
-                if (tool.getSendEmail().equals(Constants.DATA_MANDATORY)) {
-                  member = member.append("      <person_contact_email_primary>").append(encEmail).append("</person_contact_email_primary>\n");
-                }
-                if (tool.getSendUsername().equals(Constants.DATA_MANDATORY)) {
-                  member = member.append("      <person_name_given>").append(encUserName).append("</person_name_given>\n");
-                  member = member.append("      <person_name_family>").append(encFamilyName).append("</person_name_family>\n");
-                  member = member.append("      <person_name_full>").append(encFullname).append("</person_name_full>\n");
-                }
+                member = member.append("      <person_sourcedid>").append(user.getBatchUid()).append("</person_sourcedid>\n");
+              }
+              if (tool.getSendEmail().equals(Constants.DATA_MANDATORY)) {
+                member = member.append("      <person_contact_email_primary>").append(user.getEmailAddress()).append("</person_contact_email_primary>\n");
+              }
+              if (tool.getSendUsername().equals(Constants.DATA_MANDATORY)) {
+                member = member.append("      <person_name_given>").append(user.getGivenName()).append("</person_name_given>\n");
+                member = member.append("      <person_name_family>").append(user.getFamilyName()).append("</person_name_family>\n");
+                member = member.append("      <person_name_full>").append(((UserWrapper)user).getFullName()).append("</person_name_full>\n");
+              }
               if (role.equals(Role.STUDENT) && tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
                 String resultSourcedid = Utils.getServiceId(serviceData, userId, tool.getSendUUID());
                 member = member.append("      <lis_result_sourcedid>").append(resultSourcedid).append("</lis_result_sourcedid>\n");
@@ -252,8 +233,7 @@ public class Memberships implements Action {
             }
           }
         } catch (PersistenceException e) {
-        } catch (Exception e) {
-		}
+        }
         xml.append("  </memberships>\n");
 
         response.setData(xml.toString());
