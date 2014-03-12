@@ -64,8 +64,9 @@ public class Outcomes implements Action {
      Response response) {
 
     boolean ok = true;
-    Encryption encryptInstance = new Encryption();
-    encryptInstance.setKeyString(tool.getEncryptKey());
+    // initialize encryption with key and default IV as this instance will only
+    // be used for encrypt/decrypt ID
+    Encryption encryptInstance = new Encryption(tool.getEncryptKey());
     String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
     boolean isV90 = (version[0].equals("9") && version[1].equals("0"));
 
@@ -89,6 +90,7 @@ public class Outcomes implements Action {
       String userId = serviceData.get(3);
       // decrypt the user if necessary
       if (tool.isEncryptData()) {
+        // using default IV to decrypt user ID
         userId = encryptInstance.decrypt(userId);
       }
       try {

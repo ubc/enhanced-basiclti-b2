@@ -4,7 +4,19 @@ import blackboard.data.user.User;
 import blackboard.persist.Id;
 
 /**
- * A wrapper class of BB user class with encryption feature
+ * A wrapper class of BB user class with encryption feature.
+ * The following fields are encrypted with Default IV as they can
+ * be selected as ID for external tool provider in BLTI settings.
+ * We need to be able to decrypt them with a known IV.
+ * <ul>
+ *     <li>ExternalId</li>
+ *     <li>Username</li>
+ *     <li>StudentId</li>
+ *     <li>BatchUid</li>
+ * </ul>
+ * Other attributes are encrypted with hash of the external ID as
+ * the IV in order to avoid encrypted message collision when the
+ * attributes have the same value.
  */
 public class UserWrapper extends User {
     private User user;
@@ -28,19 +40,19 @@ public class UserWrapper extends User {
     }
 
     public String getExternalId() {
-        return isEncrypt ? encryptor.encrypt(user.getId().getExternalString()) : user.getId().getExternalString();
+        return isEncrypt ? encryptor.encrypt(user.getId().getExternalString(), Encryption.DEFAULT_IV) : user.getId().getExternalString();
     }
 
     public String getUsername() {
-        return isEncrypt ? encryptor.encrypt(user.getUserName()) : user.getUserName();
+        return isEncrypt ? encryptor.encrypt(user.getUserName(), Encryption.DEFAULT_IV) : user.getUserName();
     }
 
     public String getStudentId() {
-        return isEncrypt ? encryptor.encrypt(user.getStudentId()) : user.getStudentId();
+        return isEncrypt ? encryptor.encrypt(user.getStudentId(), Encryption.DEFAULT_IV) : user.getStudentId();
     }
 
     public String getBatchUid() {
-        return isEncrypt ? encryptor.encrypt(user.getBatchUid()) : user.getBatchUid();
+        return isEncrypt ? encryptor.encrypt(user.getBatchUid(), Encryption.DEFAULT_IV) : user.getBatchUid();
     }
 
     public String getEmailAddress() {
@@ -69,5 +81,13 @@ public class UserWrapper extends User {
         fullname += " " + user.getFamilyName();
 
         return isEncrypt ? encryptor.encrypt(fullname) : fullname;
+    }
+
+    public SystemRole getSystemRole() {
+        return user.getSystemRole();
+    }
+
+    public String getLocale() {
+        return user.getLocale();
     }
 }

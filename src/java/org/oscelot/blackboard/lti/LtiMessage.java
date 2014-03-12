@@ -42,7 +42,8 @@ import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
 import blackboard.platform.persistence.PersistenceServiceFactory;
 import blackboard.platform.user.MyPlacesUtil;
 import blackboard.portal.data.Module;
-import ca.ubc.ctlt.encryption.EncryptManager;
+import ca.ubc.ctlt.encryption.Encryption;
+import ca.ubc.ctlt.encryption.UserWrapper;
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
@@ -91,7 +92,7 @@ public class LtiMessage {
     props.setProperty("lti_version", Constants.LTI_VERSION);
 
 // User parameters
-    this.user = context.getUser();
+    this.user = new UserWrapper(context.getUser(), new Encryption(tool.getEncryptKey()), tool.isEncryptData());
     String userId;
     if (this.tool.getDoSendUserId()) {
       String userIdType = this.tool.getUserIdType();
@@ -121,11 +122,7 @@ public class LtiMessage {
     if (this.tool.getDoSendUsername()) {
       this.props.setProperty("lis_person_name_given", this.user.getGivenName());
       this.props.setProperty("lis_person_name_family", this.user.getFamilyName());
-      String fullname = this.user.getGivenName();
-      if ((this.user.getMiddleName() != null) && (this.user.getMiddleName().length() > 0)) {
-        fullname += " " + this.user.getMiddleName();
-      }
-      fullname += " " + this.user.getFamilyName();
+      String fullname = ((UserWrapper)this.user).getFullName();
       this.props.setProperty("lis_person_name_full", fullname);
     }
     if (this.tool.getDoSendEmail()) {
@@ -276,18 +273,9 @@ public class LtiMessage {
   public void signParameters(String url, String consumerKey, String secret) {
 
     this.props.setProperty("oauth_callback", Constants.OAUTH_CALLBACK);
-    
-    //encrypt data when option is checked
+
     OAuthMessage oAuthMessage = null;
-    Properties ecryptProps;
-    if (this.tool.isEncryptData()) {
-      EncryptManager encrypt = new EncryptManager();
-      ecryptProps = encrypt.encrypt(props, this.tool.getEncryptKey());
-      oAuthMessage = new OAuthMessage("POST", url, ecryptProps.entrySet());
-    }
-    else {
-      oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
-    }
+    oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
     OAuthConsumer oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     try {
