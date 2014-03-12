@@ -30,37 +30,29 @@
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
-import java.util.List;
-
-import java.util.Calendar;
-import java.util.TimeZone;
-import java.text.SimpleDateFormat;
-
-import org.oscelot.blackboard.lti.Gradebook;
-import org.oscelot.blackboard.lti.Gradebook_v90;
-
-import blackboard.platform.persistence.PersistenceServiceFactory;
-import blackboard.persist.BbPersistenceManager;
-import blackboard.persist.KeyNotFoundException;
-import blackboard.persist.PersistenceException;
-import blackboard.persist.user.UserDbLoader;
-import blackboard.persist.user.UserSearch;
-import blackboard.persist.user.UserSearch.SearchKey;
-import blackboard.persist.user.UserSearch.SearchParameter;
-import blackboard.persist.SearchOperator;
-import blackboard.data.user.User;
-import blackboard.persist.course.CourseMembershipDbLoader;
 import blackboard.data.course.CourseMembership;
 import blackboard.data.gradebook.Lineitem;
 import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
-
+import blackboard.data.user.User;
+import blackboard.persist.BbPersistenceManager;
+import blackboard.persist.KeyNotFoundException;
+import blackboard.persist.PersistenceException;
+import blackboard.persist.SearchOperator;
+import blackboard.persist.course.CourseMembershipDbLoader;
+import blackboard.persist.user.UserDbLoader;
+import blackboard.persist.user.UserSearch;
+import blackboard.persist.user.UserSearch.SearchKey;
+import blackboard.persist.user.UserSearch.SearchParameter;
+import blackboard.platform.persistence.PersistenceServiceFactory;
 import ca.ubc.ctlt.encryption.Encryption;
-
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.lti.Tool;
-import org.oscelot.blackboard.lti.Utils;
-import org.oscelot.blackboard.lti.Constants;
+import org.oscelot.blackboard.lti.*;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+import java.util.TimeZone;
 
 
 public class Outcomes implements Action {
@@ -73,7 +65,7 @@ public class Outcomes implements Action {
 
     boolean ok = true;
     Encryption encryptInstance = new Encryption();
-    encryptInstance.setSalt(tool.getEncryptSalt());
+    encryptInstance.setKeyString(tool.getEncryptKey());
     String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
     boolean isV90 = (version[0].equals("9") && version[1].equals("0"));
 

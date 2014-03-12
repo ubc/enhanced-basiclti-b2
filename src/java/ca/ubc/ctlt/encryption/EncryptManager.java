@@ -16,7 +16,7 @@ public class EncryptManager {
     }
 
     public Properties encrypt(Properties propObj, String salt) {
-        encryptInstance.setSalt(salt);
+        encryptInstance.setKeyString(salt);
         try {
             for (String property : propertyNames) {
                 if (propObj.getProperty(property) != null) {

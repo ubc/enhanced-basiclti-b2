@@ -30,34 +30,28 @@
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Iterator;
-
-import blackboard.data.course.CourseMembership.Role;
-import blackboard.persist.Id;
-import blackboard.data.user.User;
 import blackboard.data.content.ContentStatus;
 import blackboard.data.course.CourseMembership;
+import blackboard.data.course.CourseMembership.Role;
 import blackboard.data.course.Group;
 import blackboard.data.course.GroupMembership;
+import blackboard.data.user.User;
+import blackboard.persist.Id;
+import blackboard.persist.PersistenceException;
 import blackboard.persist.content.ContentStatusDbLoader;
 import blackboard.persist.course.CourseMembershipDbLoader;
 import blackboard.persist.course.GroupDbLoader;
 import blackboard.persist.course.GroupMembershipDbLoader;
 import blackboard.persist.user.UserDbLoader;
-import blackboard.persist.PersistenceException;
 import blackboard.platform.user.MyPlacesUtil;
-
 import ca.ubc.ctlt.encryption.Encryption;
-
 import ca.ubc.ctlt.encryption.UserWrapper;
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import org.oscelot.blackboard.lti.Constants;
 import org.oscelot.blackboard.lti.Tool;
 import org.oscelot.blackboard.lti.Utils;
-import org.oscelot.blackboard.lti.Constants;
+
+import java.util.*;
 
 
 public class Memberships implements Action {
@@ -157,7 +151,7 @@ public class Memberships implements Action {
 
               // replace the user object with UserWrapper, which will return encrypted values
               // Overriding user object is bad, but this is a hack to minimize the changes to the code below
-              user = new UserWrapper(user, new Encryption(), tool.getEncryptSalt(), tool.isEncryptData());
+              user = new UserWrapper(user, new Encryption(tool.getEncryptKey()), tool.isEncryptData());
 
               if (userIdType.equals(Constants.DATA_USERNAME)) {
                 userId = user.getUserName();

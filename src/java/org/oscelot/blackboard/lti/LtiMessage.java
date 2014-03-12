@@ -27,46 +27,35 @@
 */
 package org.oscelot.blackboard.lti;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Iterator;
-import java.util.Collections;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import blackboard.data.content.Content;
+import blackboard.data.course.Course;
+import blackboard.data.course.CourseMembership;
+import blackboard.data.role.PortalRole;
+import blackboard.data.user.User;
+import blackboard.persist.BbPersistenceManager;
+import blackboard.persist.Id;
+import blackboard.persist.PersistenceException;
+import blackboard.persist.content.ContentDbLoader;
+import blackboard.platform.context.Context;
+import blackboard.platform.institutionalhierarchy.service.Node;
+import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
+import blackboard.platform.persistence.PersistenceServiceFactory;
+import blackboard.platform.user.MyPlacesUtil;
+import blackboard.portal.data.Module;
+import ca.ubc.ctlt.encryption.EncryptManager;
+import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import net.oauth.OAuthAccessor;
+import net.oauth.OAuthConsumer;
+import net.oauth.OAuthException;
+import net.oauth.OAuthMessage;
+import org.apache.commons.httpclient.NameValuePair;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-
-import net.oauth.OAuthMessage;
-import net.oauth.OAuthConsumer;
-import net.oauth.OAuthAccessor;
-import net.oauth.OAuthException;
-
-import org.apache.commons.httpclient.NameValuePair;
-
-import blackboard.data.user.User;
-import blackboard.data.course.Course;
-import blackboard.data.course.CourseMembership;
-import blackboard.data.content.Content;
-import blackboard.data.role.PortalRole;
-import blackboard.portal.data.Module;
-import blackboard.persist.Id;
-import blackboard.persist.content.ContentDbLoader;
-import blackboard.platform.user.MyPlacesUtil;
-import blackboard.platform.persistence.PersistenceServiceFactory;
-import blackboard.persist.BbPersistenceManager;
-import blackboard.persist.PersistenceException;
-import blackboard.platform.context.Context;
-
-import blackboard.platform.institutionalhierarchy.service.Node;
-import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
-
-import ca.ubc.ctlt.encryption.EncryptManager;
-
-import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class LtiMessage {
@@ -293,7 +282,7 @@ public class LtiMessage {
     Properties ecryptProps;
     if (this.tool.isEncryptData()) {
       EncryptManager encrypt = new EncryptManager();
-      ecryptProps =  encrypt.encrypt(props, this.tool.getEncryptSalt());
+      ecryptProps = encrypt.encrypt(props, this.tool.getEncryptKey());
       oAuthMessage = new OAuthMessage("POST", url, ecryptProps.entrySet());
     }
     else {

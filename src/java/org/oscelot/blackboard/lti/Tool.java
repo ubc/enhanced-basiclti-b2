@@ -42,15 +42,13 @@
 */
 package org.oscelot.blackboard.lti;
 
-import java.io.IOException;
-
+import blackboard.base.FormattedText;
+import blackboard.servlet.data.WysiwygText;
+import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 
-import blackboard.base.FormattedText;
-import blackboard.servlet.data.WysiwygText;
-
-import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import java.io.IOException;
 
 
 public class Tool {
@@ -435,7 +433,7 @@ public class Tool {
 	  return this.getToolSetting(Constants.TOOL_ENCRYPT_DATA).equals("true");
   }
 
-  public String getEncryptSalt() {
+  public String getEncryptKey() {
       return this.getToolSetting(Constants.TOOL_ENCRYPT_SALT, "");
   }
   

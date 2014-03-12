@@ -11,10 +11,12 @@ public class UserWrapper extends User {
     private Encryption encryptor;
     private boolean isEncrypt;
 
-    public UserWrapper(User user, Encryption encryptor, String salt, boolean isEncrypt) {
+    public UserWrapper(User user, Encryption encryptor, boolean isEncrypt) {
         this.user = user;
         this.encryptor = encryptor;
         this.isEncrypt = isEncrypt;
+        // use user ID external string as initialization vector
+        this.encryptor.setIv(user.getId().getExternalString());
     }
 
     /**
