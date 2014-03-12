@@ -50,8 +50,7 @@
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.lti.ToolList,
-                org.oscelot.blackboard.lti.Constants,
-                org.oscelot.blackboard.lti.Utils"
+                org.oscelot.blackboard.lti.Constants"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.data.title']}" entitlement="system.admin.VIEW">
@@ -94,7 +93,8 @@
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLES, b2Context.getRequestParameter(Constants.TOOL_ROLES, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
-      b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_SALT, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_SALT, ""));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_KEY, ""));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
     for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
       CourseRole role = iter.next();
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(), b2Context.getRequestParameterValues(Constants.TOOL_ROLE + role.getIdentifier(), ""));
@@ -150,7 +150,8 @@
   }
   params.put(Constants.TOOL_ROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
   params.put(Constants.TOOL_ENCRYPT_DATA, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
-  params.put(Constants.TOOL_ENCRYPT_SALT, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_SALT, ""));
+  params.put(Constants.TOOL_ENCRYPT_KEY, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, ""));
+  params.put(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
   for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
     CourseRole role = iter.next();
     params.put(Constants.TOOL_ROLE + role.getIdentifier(), b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier()));
@@ -259,8 +260,11 @@
       <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption.label']}">
         <bbNG:checkboxElement isSelected="${params.encrypt_data}" name="<%=Constants.TOOL_ENCRYPT_DATA%>" value="true" helpText="${bundle['page.system.data.step2.encryption.instructions']}" />
       </bbNG:dataElement>
-      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_salt.label']}">
-        <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_SALT%>" value="<%=params.get(Constants.TOOL_ENCRYPT_SALT)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_salt.instructions']}" />
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_key.label']}">
+        <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_KEY%>" value="<%=params.get(Constants.TOOL_ENCRYPT_KEY)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_key.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_email_domain.label']}">
+        <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_EMAIL_DOMAIN%>" value="<%=params.get(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_email_domain.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step3.title']}" instructions="${bundle['page.system.data.step3.instructions']}">

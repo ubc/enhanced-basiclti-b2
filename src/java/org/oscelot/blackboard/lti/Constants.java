@@ -136,7 +136,8 @@ public class Constants {
   public static final String TOOL_MODULE = "mid";
   public static final String TOOL_COURSEID = "courseid";
   public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
-  public static final String TOOL_ENCRYPT_SALT = "encrypt_salt";
+  public static final String TOOL_ENCRYPT_KEY = "encrypt_salt";
+  public static final String TOOL_ENCRYPT_EMAIL_DOMAIN = "encrypt_email_domain";
 
 // Message types
   public static final String MESSAGE_CONFIG = "config";

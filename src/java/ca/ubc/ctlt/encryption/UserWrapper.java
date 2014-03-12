@@ -22,6 +22,7 @@ public class UserWrapper extends User {
     private User user;
     private Encryption encryptor;
     private boolean isEncrypt;
+    private String pseoduDomain;
 
     public UserWrapper(User user, Encryption encryptor, boolean isEncrypt) {
         this.user = user;
@@ -29,6 +30,10 @@ public class UserWrapper extends User {
         this.isEncrypt = isEncrypt;
         // use user ID external string as initialization vector
         this.encryptor.setIv(user.getId().getExternalString());
+    }
+
+    public void setPseoduDomain(String pseoduDomain) {
+        this.pseoduDomain = pseoduDomain;
     }
 
     /**
@@ -60,9 +65,12 @@ public class UserWrapper extends User {
         if (value == null) {
             return null;
         }
-        String[] email = value.split("(?=@)");
+        String[] email = value.split("@");
 
-        return isEncrypt ? encryptor.encrypt(email[0]) + (email.length > 1 ? email[1] : "") : user.getEmailAddress();
+        String domain = email.length > 1 ? email[1] : "";
+        domain = (null == pseoduDomain || pseoduDomain.isEmpty()) ? domain : pseoduDomain;
+
+        return isEncrypt ? encryptor.encrypt(email[0]) + "@" + domain : user.getEmailAddress();
     }
 
     public String getGivenName() {

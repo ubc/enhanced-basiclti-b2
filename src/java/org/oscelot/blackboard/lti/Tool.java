@@ -434,7 +434,11 @@ public class Tool {
   }
 
   public String getEncryptKey() {
-      return this.getToolSetting(Constants.TOOL_ENCRYPT_SALT, "");
+      return this.getToolSetting(Constants.TOOL_ENCRYPT_KEY, "");
+  }
+
+  public String getEncryptEmailDoamin() {
+      return this.getToolSetting(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, "");
   }
   
   public String getOpenIn() {
