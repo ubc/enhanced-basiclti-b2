@@ -61,7 +61,7 @@ public class DashboardFeed {
   private Module module = null;
   private String launchUrl = null;
   private Tool tool = null;
-  private Date date = null;
+  private Date date = Calendar.getInstance().getTime();
   private String iconUrl = null;
   private String iconTitle = null;
   private String content = null;
