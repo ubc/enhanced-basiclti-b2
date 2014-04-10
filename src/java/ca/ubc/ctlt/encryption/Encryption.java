@@ -13,6 +13,61 @@ import java.util.Arrays;
 
 /**
  * Encryption instance
+ *
+ * <p>
+ * In BLTI message transmission, the following identifiable
+ * information are possibly transmitted to external tool providers:
+ * <ul>
+ *     <li>username</li>
+ *     <li>student ID</li>
+ *     <li>Batch UID</li>
+ *     <li>external ID</li>
+ *     <li>email address</li>
+ *     <li>given name</li>
+ *     <li>family name</li>
+ *     <li>full name</li>
+ * </ul>.
+ * When encryption function in BLTI building block is enabled, those
+ * information will be encrypted using Advanced Encryption Standard
+ * (AES) with Cipher-block chaining (CBC) mode and PKCS#5 padding.
+ * Once encrypted, the messages are sent to external tool provider.
+ * This includes LTI launch message and extension messages. The building
+ * block also has ability to decrypt the messages when external tool
+ * sending back the grade. The identifier in the grade message are
+ * encrypted and will be decrypted by the building block in order to
+ * identify the user in Blackboard.
+ * </p>
+ * <p>
+ * <b>Encryption/Decryption Key</b>
+ * In the building block configuration page, there is a
+ * encryption/decryption key to be set by Blackboard administrator.
+ * The different keys should be set to different BLTI tool providers
+ * to ensure the same message are encrypted into different cipher text
+ * to prevent the cross reference identification.
+ * </p>
+ * <p>
+ * <b>Initialization Vector (IV) in CBC</b>
+ *  The following fields are encrypted with Default IV as they can
+ * be selected as ID for external tool provider in BLTI settings.
+ * We need to be able to decrypt them with a known IV.
+ * <ul>
+ *     <li>ExternalId</li>
+ *     <li>Username</li>
+ *     <li>StudentId</li>
+ *     <li>BatchUid</li>
+ * </ul>
+ * Other attributes are encrypted with hash of the external ID as
+ * the IV in order to avoid encrypted message collision when the
+ * attributes have the same value.
+ * </p><p>
+ * <b>Email</b>
+ * Some tools check the email format. Therefore, only the username (the
+ * string before @) is encrypted. In order to prevent leaking information
+ * of the email domain, a pseudo domain can be provided by blackboard
+ * administrator. In that case, the email sent to external tool provider
+ * will be "encrypted_value@pseudo domain". Another usage for this approach
+ * is to set up the email forwarding on the pseudo domain so that when the
+ * email sent from external tool, the message still can reach to the user.
  */
 public class Encryption {
     public final static String DEFAULT_KEY = "RANDOM KEY STRING";

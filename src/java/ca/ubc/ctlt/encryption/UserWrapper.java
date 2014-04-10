@@ -5,24 +5,12 @@ import blackboard.persist.Id;
 
 /**
  * A wrapper class of BB user class with encryption feature.
- * The following fields are encrypted with Default IV as they can
- * be selected as ID for external tool provider in BLTI settings.
- * We need to be able to decrypt them with a known IV.
- * <ul>
- *     <li>ExternalId</li>
- *     <li>Username</li>
- *     <li>StudentId</li>
- *     <li>BatchUid</li>
- * </ul>
- * Other attributes are encrypted with hash of the external ID as
- * the IV in order to avoid encrypted message collision when the
- * attributes have the same value.
  */
 public class UserWrapper extends User {
     private User user;
     private Encryption encryptor;
     private boolean isEncrypt;
-    private String pseoduDomain;
+    private String pseudoDomain;
 
     public UserWrapper(User user, Encryption encryptor, boolean isEncrypt) {
         this.user = user;
@@ -32,8 +20,8 @@ public class UserWrapper extends User {
         this.encryptor.setIv(user.getId().getExternalString());
     }
 
-    public void setPseoduDomain(String pseoduDomain) {
-        this.pseoduDomain = pseoduDomain;
+    public void setPseudoDomain(String pseudoDomain) {
+        this.pseudoDomain = pseudoDomain;
     }
 
     /**
@@ -68,7 +56,7 @@ public class UserWrapper extends User {
         String[] email = value.split("@");
 
         String domain = email.length > 1 ? email[1] : "";
-        domain = (null == pseoduDomain || pseoduDomain.isEmpty()) ? domain : pseoduDomain;
+        domain = (null == pseudoDomain || pseudoDomain.isEmpty()) ? domain : pseudoDomain;
 
         return isEncrypt ? encryptor.encrypt(email[0]) + "@" + domain : user.getEmailAddress();
     }
