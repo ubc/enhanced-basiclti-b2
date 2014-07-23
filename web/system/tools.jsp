@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,33 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10
-      1.1.3  1-Jan-11  Changed to use standard image files
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-                       Added support for paging of tool list
-      2.0.1 20-May-12  Fixed page doctype
-                       Added return to control panel tools page (including paging option)
-      2.1.0 18-Jun-12  Added "Open in" to tool summary table
-                       Updated mouseover titles to table entries
-      2.2.0  2-Sep-12  Added option to add tools as named items on a content page menu
-                       Added clear cache option
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.List,
+                java.net.URLEncoder,
                 java.util.ArrayList,
                 blackboard.servlet.tags.ngui.ContextMenuTag,
                 blackboard.persist.Id,
@@ -64,16 +42,14 @@
   String subTitle = "";
   ToolList toolList = new ToolList(b2Context);
   List<Tool> tools = toolList.getList();
+  String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
   String handle = "admin_main";
-  if (request.getParameter(Constants.PAGE_PARAMETER_NAME) != null) {
+  if (sourcePage.length() > 0) {
     handle = "admin_plugin_manage";
   }
   String cancelUrl = b2Context.getNavigationItem(handle).getHref();
-  boolean isv90 = !B2Context.getIsVersion(9, 1, 0);
   boolean enabledMashup = b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
-  if (!isv90) {
-    Utils.checkVTBEMashup(b2Context, enabledMashup);  // Check mashup option is in place
-  }
+  Utils.checkVTBEMashup(b2Context, enabledMashup);  // Check mashup option is in place
 
   StringCache stringCache = StringCacheFile.getInstance(
      b2Context.getSetting(Constants.CACHE_AGE_PARAMETER),
@@ -95,22 +71,21 @@
   pageContext.setAttribute("NoMenu", Constants.ACTION_NOMENU);
   pageContext.setAttribute("DoTool", Constants.ACTION_TOOL);
   pageContext.setAttribute("DoNotool", Constants.ACTION_NOTOOL);
-  if (!isv90) {
-    pageContext.setAttribute("CreateItemMenu", Constants.MENU_CREATE_ITEM);
-    pageContext.setAttribute("CreateMediaMenu", Constants.MENU_CREATE_MEDIA);
-    pageContext.setAttribute("CreateOtherMenu", Constants.MENU_CREATE_OTHER);
-    pageContext.setAttribute("NewPageMenu", Constants.MENU_NEW_PAGE);
-    pageContext.setAttribute("MashupMenu", Constants.MENU_MASHUP);
-    pageContext.setAttribute("AssessmentsMenu", Constants.MENU_EVALUATE);
-    pageContext.setAttribute("ToolsMenu", Constants.MENU_COLLABORATE);
-    pageContext.setAttribute("PublisherMenu", Constants.MENU_TEXTBOOK);
-  }
+  pageContext.setAttribute("CreateItemMenu", Constants.MENU_CREATE_ITEM);
+  pageContext.setAttribute("CreateMediaMenu", Constants.MENU_CREATE_MEDIA);
+  pageContext.setAttribute("CreateOtherMenu", Constants.MENU_CREATE_OTHER);
+  pageContext.setAttribute("NewPageMenu", Constants.MENU_NEW_PAGE);
+  pageContext.setAttribute("MashupMenu", Constants.MENU_MASHUP);
+  pageContext.setAttribute("AssessmentsMenu", Constants.MENU_EVALUATE);
+  pageContext.setAttribute("ToolsMenu", Constants.MENU_COLLABORATE);
+  pageContext.setAttribute("PublisherMenu", Constants.MENU_TEXTBOOK);
   pageContext.setAttribute("xmlTitle", b2Context.getResourceString("page.system.tools.action.xml"));
   pageContext.setAttribute("subTitle", subTitle);
   String reorderingUrl = "reordertools";
 %>
   <bbNG:jsBlock>
-<script type="text/javascript">
+<script language="javascript" type="text/javascript">
+//<![CDATA[
 function doOnLoad() {
 }
 function doAction(value) {
@@ -119,9 +94,10 @@ function doAction(value) {
 }
 function doDelete() {
   if (confirm('${bundle['page.system.tools.action.confirm']}')) {
-    doAction('delete');
+    doAction('${DoDelete}');
   }
 }
+//]]>
 </script>
   </bbNG:jsBlock>
   <bbNG:pageHeader instructions="${bundle['page.system.tools.instructions']}">
@@ -153,23 +129,6 @@ function doDelete() {
        description="${bundle['page.system.tools.description']}" reorderable="true" reorderType="${bundle['page.system.tools.reordertype']}"
        reorderingUrl="<%=reorderingUrl%>"
        itemIdAccessor="getId" itemNameAccessor="getName" showAll="false" emptyMsg="${bundle['page.system.tools.empty']}">
-<%
-  if (isv90) {
-%>
-      <bbNG:listActionBar>
-        <bbNG:listActionMenu title="${bundle['page.system.tools.action.status']}">
-          <bbNG:listActionItem title="${bundle['page.system.tools.action.enable']}" url="JavaScript: doAction('${DoEnable}');" />
-          <bbNG:listActionItem title="${bundle['page.system.tools.action.disable']}" url="JavaScript: doAction('${DoDisable}');" />
-        </bbNG:listActionMenu>
-        <bbNG:listActionMenu title="${bundle['page.system.tools.action.coursetool']}">
-          <bbNG:listActionItem title="${bundle['page.system.tools.action.tool']}" url="JavaScript: doAction('${DoTool}');" />
-          <bbNG:listActionItem title="${bundle['page.system.tools.action.notool']}" url="JavaScript: doAction('${DoNotool}');" />
-        </bbNG:listActionMenu>
-        <bbNG:listActionItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete('${DoDelete}');" />
-      </bbNG:listActionBar>
-<%
-  }
-%>
       <bbNG:listActionBar>
         <bbNG:listActionMenu title="${bundle['page.system.tools.action.status']}">
           <bbNG:listActionItem title="${bundle['page.system.tools.action.enable']}" url="JavaScript: doAction('${DoEnable}');" />
@@ -190,7 +149,7 @@ function doDelete() {
           <bbNG:listActionItem title="${bundle['page.system.tools.action.tool']}" url="JavaScript: doAction('${DoTool}');" />
           <bbNG:listActionItem title="${bundle['page.system.tools.action.notool']}" url="JavaScript: doAction('${DoNotool}');" />
         </bbNG:listActionMenu>
-        <bbNG:listActionItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete('${DoDelete}');" />
+        <bbNG:listActionItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" />
       </bbNG:listActionBar>
 <bbNG:jspBlock>
 <%
@@ -222,24 +181,20 @@ function doDelete() {
   }
   pageContext.setAttribute("openinLabel", b2Context.getResourceString("page.system.launch.openin." + tool.getOpenIn()));
 
-  if (!isv90) {
 %>
       <bbNG:listElement isRowHeader="false" label="${bundle['page.system.tools.menuitem.label']}" name="menuitem">
 <%
-    if (tool.getHasMenuItem()) {
+  if (tool.getHasMenuItem()) {
 %>
         ${tool.menuItem.menuLabel}
 <%
-    } else {
+  } else {
 %>
         <img src="${imageFiles["false"]}" alt="${bundle[imageAlt["false"]]}" title="${bundle[imageAlt["false"]]}" />
 <%
-    }
-%>
-      </bbNG:listElement>
-<%
   }
 %>
+      </bbNG:listElement>
       <bbNG:listElement isRowHeader="false" label="${bundle['page.system.tools.coursetool.label']}" name="coursetool">
         <img src="${imageFiles[tool.hasCourseTool]}" alt="${bundle[imageAlt[tool.hasCourseTool]]}" title="${bundle[imageAlt[tool.hasCourseTool]]}" />
       </bbNG:listElement>
@@ -247,6 +202,22 @@ function doDelete() {
         <span title="${tool.url}">${tool.name}</span>
 <%
   if (enabled) {
+    String configUrl = b2Context.getPath() + "config.jsp?" + Constants.TOOL_ID + "=" + tool.getId() +
+       "&" + Constants.PAGE_PARAMETER_NAME + "=" + Constants.ADMIN_PAGE + "&" + Utils.getQuery(request);
+    if (sourcePage.length() > 0) {
+      configUrl += "&" + Constants.PAGE_PARAMETER_NAME + "2=" + sourcePage;
+    }
+    if (B2Context.getIsVersion(9, 1, 201404)) {
+      configUrl = "/webapps/blackboard/content/contentWrapper.jsp?" +
+            "displayName=" + URLEncoder.encode(tool.getName(), "UTF-8") +
+            "&href=" + URLEncoder.encode(configUrl, "UTF-8");
+    }
+    String target = "_self";
+    if (!tool.getSplash().equals(Constants.DATA_TRUE) && !tool.getUserHasChoice()) {
+      target = tool.getWindowName();
+    }
+    pageContext.setAttribute("configUrl", configUrl);
+    pageContext.setAttribute("target", target);
     if (tool.getConfig().equals(Constants.DATA_TRUE)) {
 %>
         <bbNG:listContextMenu order="edit,data,launch,${itemSeparator},status,tool,xml,${itemSeparator},delete,${itemSeparator},configure">
@@ -257,7 +228,7 @@ function doDelete() {
           <bbNG:contextMenuItem title="${toolTitle}" url="JavaScript: doAction('${toolAction}');" id="tool" />
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}" target="_blank" id="xml" />
           <bbNG:contextMenuItem title="${deleteOption}" url="JavaScript: doDelete();" id="delete" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="../config.jsp?${id}${list}&${query}" target="${target}" id="config" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="${configUrl}" target="${target}" id="config" />
         </bbNG:listContextMenu>
 <%
     } else {
@@ -282,7 +253,7 @@ function doDelete() {
           <bbNG:contextMenuItem title="${actionTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}" target="_blank" id="xml" />
           <bbNG:contextMenuItem title="${deleteOption}" url="JavaScript: doDelete();" id="delete" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="../config.jsp?${id}${list}&${query}" target="${target}" id="config" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="${configUrl}?${id}${list}&${query}" target="${target}" id="config" />
         </bbNG:listContextMenu>
 <%
   } else {

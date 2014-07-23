@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      3.0.0 30-Oct-13  Added to release
 */
 package org.oscelot.blackboard.lti.resources;
 
@@ -75,7 +72,7 @@ public class OutcomesV1 extends Resource {
   public String parseValue(String value) {
 
     B2Context b2Context = this.getService().getB2Context();
-    value = value.replaceAll("\\$Outcomes.LTI1.uri", b2Context.getServerUrl() + b2Context.getPath() + this.getPath());
+    value = value.replaceAll("\\$Outcomes.LTI1.url", b2Context.getServerUrl() + b2Context.getPath() + this.getPath());
 
     return value;
 

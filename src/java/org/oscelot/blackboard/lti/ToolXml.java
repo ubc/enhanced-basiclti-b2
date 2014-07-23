@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,10 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.3.2  3-Apr-13  Added to release
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.lti;
 
@@ -163,6 +159,8 @@ public class ToolXml extends HttpServlet {
          tool.getRole(cRole.getIdentifier())));
     }
     xml.append(xmlProperty(Constants.TOOL_ROLES, tool.getRoles()));
+    xml.append(xmlProperty(Constants.TOOL_EXT_IROLES, tool.getIRoles()));
+    xml.append(xmlProperty(Constants.TOOL_EXT_CROLES, tool.getCRoles()));
     xml.append(xmlProperty(Constants.TOOL_SPLASH, tool.getSplash()));
     xml.append(xmlProperty(Constants.TOOL_SPLASHTEXT, tool.getSplashText()));
     xml.append(xmlProperty(Constants.TOOL_USERID, tool.getUserId()));

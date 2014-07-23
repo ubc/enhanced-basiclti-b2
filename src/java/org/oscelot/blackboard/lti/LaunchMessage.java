@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      3.0.0 30-Oct-13  Added to release
 */
 package org.oscelot.blackboard.lti;
 
@@ -69,7 +66,11 @@ public class LaunchMessage extends LtiMessage {
     if (list.length() > 0) {
       query.append(Constants.PAGE_PARAMETER_NAME).append("=").append(list);
     }
-    this.props.setProperty("launch_presentation_return_url", returnUrl + "?" + query.toString());
+    String queryString = query.toString();
+    if (queryString.endsWith("&")) {
+      queryString = queryString.substring(0, queryString.length() - 1);
+    }
+    this.props.setProperty("launch_presentation_return_url", returnUrl + "?" + queryString);
 
     if (module != null) {
       this.props.setProperty("launch_presentation_return_url", returnUrl + "?" + Constants.TOOL_MODULE + "=" + module.getId().toExternalString() + "&" +
@@ -85,6 +86,9 @@ public class LaunchMessage extends LtiMessage {
       } catch (PersistenceException e) {
       }
     }
+    if (this.tool.getOpenIn().equals(Constants.DATA_WINDOW)) {
+      this.props.remove("launch_presentation_return_url");
+    }
 
     String extensionUrl = domain + b2Context.getPath() + "extension";
     String serviceUrl = domain + b2Context.getPath() + "service";
@@ -93,8 +97,8 @@ public class LaunchMessage extends LtiMessage {
     serviceData.add(contentId);
     serviceData.add(this.tool.getId());
     String time = Integer.toString((int)(System.currentTimeMillis() / 1000));
-    String hashId = Utils.getServiceId(serviceData, time, tool.getSendUUID());
-    if ((this.course != null) && tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
+    String hashId = Utils.getServiceId(serviceData, time, this.tool.getSendUUID());
+    if ((this.course != null) && this.tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
       if (this.tool.getDoSendOutcomesService()) {
         this.props.setProperty("ext_ims_lis_basic_outcome_url", extensionUrl);
         this.props.setProperty("ext_ims_lis_resultvalue_sourcedids", "decimal,percentage,ratio,passfail,letteraf,letterafplus,freetext");
@@ -102,7 +106,7 @@ public class LaunchMessage extends LtiMessage {
         boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
         CourseMembership.Role role = Utils.getRole(b2Context.getContext().getCourseMembership().getRole(), systemRolesOnly);
         boolean isStudent = role.equals(CourseMembership.Role.STUDENT);
-        if (isStudent) {
+        if (isStudent && (this.props.getProperty("user_id") != null) && (this.props.getProperty("user_id").length() > 0)) {
           String userHashId = Utils.getServiceId(serviceData, this.props.getProperty("user_id"), tool.getSendUUID());
           this.props.setProperty("lis_result_sourcedid", userHashId);
         }

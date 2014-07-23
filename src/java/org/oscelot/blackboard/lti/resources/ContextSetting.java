@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      3.0.0 30-Oct-13  Added to release
 */
 package org.oscelot.blackboard.lti.resources;
 
@@ -238,7 +235,7 @@ public class ContextSetting extends Resource {
       url = url.replaceAll("\\{context_id\\}", course.getId().toExternalString());
       url = url.replaceAll("\\{vendor_code\\}", this.getService().getB2Context().getVendorId());
       url = url.replaceAll("\\{product_code\\}", this.getService().getTool().getId());
-      value = value.replaceAll("\\$ToolProxyBinding.custom.uri", url);
+      value = value.replaceAll("\\$ToolProxyBinding.custom.url", url);
     }
 
     return value;

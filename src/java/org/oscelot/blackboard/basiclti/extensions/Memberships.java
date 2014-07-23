@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,41 +17,33 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.0.0 29-Jan-12
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12  Updated to limit list when content item assigned to groups
-      2.2.0  2-Sep-12  Added experimental option to send group membership details
-      2.3.0  5-Nov-12  Added support to send group set details
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
+import blackboard.data.course.CourseMembership.Role;
+import blackboard.persist.Id;
+import blackboard.data.user.User;
 import blackboard.data.content.ContentStatus;
 import blackboard.data.course.CourseMembership;
-import blackboard.data.course.CourseMembership.Role;
 import blackboard.data.course.Group;
 import blackboard.data.course.GroupMembership;
-import blackboard.data.user.User;
-import blackboard.persist.Id;
-import blackboard.persist.PersistenceException;
 import blackboard.persist.content.ContentStatusDbLoader;
 import blackboard.persist.course.CourseMembershipDbLoader;
 import blackboard.persist.course.GroupDbLoader;
 import blackboard.persist.course.GroupMembershipDbLoader;
 import blackboard.persist.user.UserDbLoader;
+import blackboard.persist.PersistenceException;
 import blackboard.platform.user.MyPlacesUtil;
-import ca.ubc.ctlt.encryption.Encryption;
-import ca.ubc.ctlt.encryption.UserWrapper;
+
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.lti.Constants;
 import org.oscelot.blackboard.lti.Tool;
 import org.oscelot.blackboard.lti.Utils;
+import org.oscelot.blackboard.lti.Constants;
 
 import java.util.*;
+
+import ca.ubc.ctlt.encryption.Encryption;
+import ca.ubc.ctlt.encryption.UserWrapper;
 
 
 public class Memberships implements Action {
@@ -94,7 +86,12 @@ public class Memberships implements Action {
           if (includeGroups) {
             groups = new HashMap<Id,Group>();
             GroupDbLoader groupLoader = GroupDbLoader.Default.getInstance();
-            List<Group> loadGroups = groupLoader.loadGroupsAndSetsByCourseId(b2Context.getContext().getCourseId());
+            List<Group> loadGroups;
+            if (B2Context.getIsVersion(9, 1, 8)) {
+              loadGroups = groupLoader.loadGroupsAndSetsByCourseId(b2Context.getContext().getCourseId());
+            } else {
+              loadGroups = groupLoader.loadByCourseId(b2Context.getContext().getCourseId());
+            }
             for (Group group : loadGroups) {
               String title = group.getTitle();
               if (group.isGroupSet() || (group.getIsAvailable() && ((groupPrefix.length() <= 0) || title.matches(groupPrefix)))) {
@@ -153,6 +150,7 @@ public class Memberships implements Action {
               // Overriding user object is bad, but this is a hack to minimize the changes to the code below
               user = new UserWrapper(user, new Encryption(tool.getEncryptKey()), tool.isEncryptData());
               ((UserWrapper)user).setPseudoDomain(tool.getEncryptEmailDoamin());
+
 
               if (userIdType.equals(Constants.DATA_USERNAME)) {
                 userId = user.getUserName();

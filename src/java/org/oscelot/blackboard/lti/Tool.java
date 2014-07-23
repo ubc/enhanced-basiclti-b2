@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,38 +17,18 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added methods for OpenIn and Window properties
-      1.1.3  1-Jan-11  Added User ID type property
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Changed default window name to the tool ID
-                       Added support for CSS and icon properties
-                       Added support for enabled and available statuses
-                       Added getLimitMemberships method
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12  Added domain support
-      2.2.0  2-Sep-12  Added menu support
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12  Added methods for grade column options and custom parameters
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.lti;
 
-import blackboard.base.FormattedText;
-import blackboard.servlet.data.WysiwygText;
-import com.spvsoftwareproducts.blackboard.utils.B2Context;
+import java.io.IOException;
+
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 
-import java.io.IOException;
+import blackboard.base.FormattedText;
+import blackboard.servlet.data.WysiwygText;
+
+import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
 
 public class Tool {
@@ -103,11 +83,13 @@ public class Tool {
         } catch (Exception e) {
         }
       }
-      String courseToolId = this.b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + id + "." + Constants.TOOL_COURSETOOL, "");
-      if (courseToolId.length() > 0) {
-        try {
-          this.courseTool = new CourseTool(b2Context, this, courseToolId);
-        } catch (Exception e) {
+      if (B2Context.getIsVersion(9, 1, 8)) {
+        String courseToolId = this.b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + id + "." + Constants.TOOL_COURSETOOL, "");
+        if (courseToolId.length() > 0) {
+          try {
+            this.courseTool = new CourseTool(b2Context, this, courseToolId);
+          } catch (Exception e) {
+          }
         }
       }
     }
@@ -341,6 +323,18 @@ public class Tool {
   public String getRole(String role) {
 
     return this.getToolSetting(Constants.TOOL_ROLE + "." + role, "");
+
+  }
+
+  public String getIRoles() {
+
+    return this.getToolSetting(Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE);
+
+  }
+
+  public String getCRoles() {
+
+    return this.getToolSetting(Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE);
 
   }
 
@@ -981,6 +975,18 @@ public class Tool {
   public boolean getDoSendRoles() {
 
     return this.getRoles().equals(Constants.DATA_TRUE);
+
+  }
+
+  public boolean getDoSendIRoles() {
+
+    return this.getIRoles().equals(Constants.DATA_TRUE);
+
+  }
+
+  public boolean getDoSendCRoles() {
+
+    return this.getCRoles().equals(Constants.DATA_TRUE);
 
   }
 

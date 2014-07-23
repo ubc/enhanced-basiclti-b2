@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,14 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.1.0 18-Jun-12  Added to release
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -38,8 +30,9 @@
 <%
   B2Context b2Context = new B2Context(request);
   ToolList domainList = new ToolList(b2Context, true, true);
+  String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
   String handle = "admin_main";
-  if (request.getParameter("config") != null) {
+  if (sourcePage.length() > 0) {
     handle = "admin_plugin_manage";
   }
   String cancelUrl = b2Context.getNavigationItem(handle).getHref();
@@ -58,7 +51,8 @@
   String reorderingUrl = "reorderdomains";
 %>
   <bbNG:jsBlock>
-  <script type="text/javascript">
+<script language="javascript" type="text/javascript">
+//<![CDATA[
   function doAction(value) {
     document.frmDomains.action.value = value;
     document.frmDomains.submit();
@@ -68,7 +62,8 @@
       doAction('delete');
     }
   }
-  </script>
+//]]>
+</script>
   </bbNG:jsBlock>
   <bbNG:pageHeader instructions="${bundle['page.system.domains.instructions']}">
     <bbNG:breadcrumbBar environment="SYS_ADMIN" navItem="admin_plugin_manage">

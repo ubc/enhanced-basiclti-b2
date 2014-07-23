@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      3.0.0 30-Oct-13  Added to release
 */
 package org.oscelot.blackboard.lti.resources;
 
@@ -254,7 +251,7 @@ public class LinkSetting extends Resource {
         contentId += ":" + b2Context.getRequestParameter(Constants.TOOL_ID, "");
       }
       url = url.replaceAll("\\{link_id\\}", contentId);
-      value = value.replaceAll("\\$LtiLink.custom.uri", url);
+      value = value.replaceAll("\\$LtiLink.custom.url", url);
     }
 
     return value;

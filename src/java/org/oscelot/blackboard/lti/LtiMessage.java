@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,46 +17,51 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.2.0  2-Sep-12  Added to release
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12  Switched to using BbSession for module custom parameters
-      2.3.2 20-Jan-13  Fixed issue with splitting list of custom parameters
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.lti;
 
-import blackboard.data.content.Content;
-import blackboard.data.course.Course;
-import blackboard.data.course.CourseMembership;
-import blackboard.data.role.PortalRole;
-import blackboard.data.user.User;
-import blackboard.persist.BbPersistenceManager;
-import blackboard.persist.Id;
-import blackboard.persist.PersistenceException;
-import blackboard.persist.content.ContentDbLoader;
-import blackboard.platform.context.Context;
-import blackboard.platform.institutionalhierarchy.service.Node;
-import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
-import blackboard.platform.persistence.PersistenceServiceFactory;
-import blackboard.platform.user.MyPlacesUtil;
-import blackboard.portal.data.Module;
-import ca.ubc.ctlt.encryption.Encryption;
-import ca.ubc.ctlt.encryption.UserWrapper;
-import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import net.oauth.OAuthAccessor;
-import net.oauth.OAuthConsumer;
-import net.oauth.OAuthException;
-import net.oauth.OAuthMessage;
-import org.apache.commons.httpclient.NameValuePair;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Iterator;
+import java.util.Collections;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import net.oauth.OAuthMessage;
+import net.oauth.OAuthConsumer;
+import net.oauth.OAuthAccessor;
+import net.oauth.OAuthException;
+
+import org.apache.commons.httpclient.NameValuePair;
+
+import blackboard.data.user.User;
+import blackboard.data.course.Course;
+import blackboard.data.course.CourseMembership;
+import blackboard.data.content.Content;
+import blackboard.platform.security.CourseRole;
+import blackboard.data.role.PortalRole;
+import blackboard.portal.data.Module;
+import blackboard.persist.Id;
+import blackboard.persist.content.ContentDbLoader;
+import blackboard.platform.user.MyPlacesUtil;
+import blackboard.platform.persistence.PersistenceServiceFactory;
+import blackboard.persist.BbPersistenceManager;
+import blackboard.persist.PersistenceException;
+import blackboard.platform.context.Context;
+
+import blackboard.platform.institutionalhierarchy.service.Node;
+import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
+
+import com.spvsoftwareproducts.blackboard.utils.B2Context;
+
+import ca.ubc.ctlt.encryption.Encryption;
+import ca.ubc.ctlt.encryption.UserWrapper;
 
 
 public class LtiMessage {
@@ -139,6 +144,7 @@ public class LtiMessage {
       this.course = context.getCourse();
     }
     String roles = "";
+    boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
     boolean sendAdminRole = this.tool.getSendAdministrator().equals(Constants.DATA_TRUE);
     if (this.course != null) {
       String contentId = b2Context.getRequestParameter("content_id", "");
@@ -179,12 +185,22 @@ public class LtiMessage {
         this.props.setProperty("lis_course_section_sourcedid", this.course.getBatchUid());
       }
 
-      boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
       CourseMembership.Role role = Utils.getRole(context.getCourseMembership().getRole(), systemRolesOnly);
 
       if (this.tool.getDoSendRoles()) {
         roles = Utils.getCRoles(this.tool.getRole(role.getIdentifier()),
             sendAdminRole && this.user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN));
+        if (this.tool.getDoSendCRoles()) {
+          CourseRole cRole = role.getDbRole();
+          if (systemRolesOnly && cRole.isRemovable()) {
+            if (cRole.isActAsInstructor()) {
+              cRole = CourseMembership.Role.INSTRUCTOR.getDbRole();
+            } else {
+              cRole = CourseMembership.Role.TEACHING_ASSISTANT.getDbRole();
+            }
+          }
+          this.props.setProperty("ext_context_roles", cRole.getCourseName());
+        }
       }
     }
     if (this.tool.getDoSendRoles()) {
@@ -192,9 +208,21 @@ public class LtiMessage {
         roles = Utils.addAdminRole(roles, this.user);
       }
       this.props.setProperty("roles", roles);
+      if (this.tool.getDoSendIRoles()) {
+        List<PortalRole> iRoles = Utils.getInstitutionRoles(systemRolesOnly, this.user);
+        StringBuilder iRolesString = new StringBuilder();
+        PortalRole role;
+        String sep = "";
+        for (Iterator<PortalRole> iter = iRoles.iterator(); iter.hasNext();) {
+          role = iter.next();
+          iRolesString.append(sep).append(role.getRoleName());
+          sep = ",";
+        }
+        this.props.setProperty("ext_institution_roles", iRolesString.toString());
+      }
     }
     if (module != null) {
-      if (this.tool.getDoSendContextId()) {
+      if (this.tool.getDoSendContextId() && B2Context.getIsVersion(9, 1, 8)) {
         String contextId = "";
         Id id = b2Context.getContext().getUserId();
         if (id != Id.UNSET_ID) {
@@ -275,9 +303,7 @@ public class LtiMessage {
   public void signParameters(String url, String consumerKey, String secret) {
 
     this.props.setProperty("oauth_callback", Constants.OAUTH_CALLBACK);
-
-    OAuthMessage oAuthMessage = null;
-    oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
+    OAuthMessage oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
     OAuthConsumer oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     try {

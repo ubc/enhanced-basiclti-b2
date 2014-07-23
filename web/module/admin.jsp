@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,13 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.2.0  2-Sep-12  Added to release
-      2.3.0  5-Nov-12  Added mapping for institution roles
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 --%>
 <%@page import="java.util.List,
                 java.util.Map,

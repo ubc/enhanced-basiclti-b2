@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,28 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.1.2  9-Oct-10  Constants moved to a this Class to share between Java and JSP code
-      1.1.3  1-Jan-11  Added constants for User ID type and image file locations
-      1.2.0 17-Sep-11  Added hash methods to support extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Added functions for handling course roles, query strings, parsing
-                       parameters and formatting calendar objects
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12  Added functions to auto-generate tool IDs, provide domain support
-                       and process XML descriptors
-      2.2.0  2-Sep-12  Added function for handling dates from form fields
-                       Added functions for handling VTBE mashup option (to fix support for Learn 9.0)
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12  Added $User custom substitution parameters
-                       Added support for multiple roles in XML format
-      2.3.2  3-Apr-13  Fixed bug in getToolFromXML when running Learn 9 under SSL
-                       Fixed bug with generating new tool IDs for instructor-defined tools
-                       Removed entity expansion from XML parsing
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.lti;
 
@@ -60,6 +38,7 @@ import java.net.URLDecoder;
 import java.net.MalformedURLException;
 
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.GetMethod;
 
 import java.text.SimpleDateFormat;
 
@@ -118,7 +97,6 @@ import org.oscelot.blackboard.lti.services.Service;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 import javax.servlet.http.HttpSession;
-import org.apache.commons.httpclient.methods.GetMethod;
 
 
 public class Utils {
@@ -318,16 +296,12 @@ public class Utils {
   public static Role getRole(Role role, boolean systemRolesOnly) {
 
     if (systemRolesOnly) {
-//      String version = B2Context.getVersionNumber("");
-//      if (version.compareTo("9.1.") >= 0) {
-      if (B2Context.getIsVersion(9, 1, 0)) {
-        CourseRole cRole = role.getDbRole();
-        if (cRole.isRemovable()) {
-          if (cRole.isActAsInstructor()) {
-            role = Role.INSTRUCTOR;
-          } else {
-            role = Role.TEACHING_ASSISTANT;
-          }
+      CourseRole cRole = role.getDbRole();
+      if (cRole.isRemovable()) {
+        if (cRole.isActAsInstructor()) {
+          role = Role.INSTRUCTOR;
+        } else {
+          role = Role.TEACHING_ASSISTANT;
         }
       }
     }
@@ -395,7 +369,7 @@ public class Utils {
       BbPersistenceManager pm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
       CourseRoleDbLoader crLoader = (CourseRoleDbLoader)pm.getLoader("CourseRoleDbLoader");
       List<CourseRole> allRoles = crLoader.loadAll();
-      if (systemRolesOnly && B2Context.getIsVersion(9, 1, 0)) {
+      if (systemRolesOnly) {
         roles = new ArrayList<CourseRole>();
         for (Iterator<CourseRole> iter = allRoles.listIterator(); iter.hasNext();) {
           CourseRole role = iter.next();
@@ -659,20 +633,16 @@ public class Utils {
     if (columnFormat.equals(Constants.EXT_OUTCOMES_COLUMN_SCORE)) {
       scaleType = Constants.RATIO_RESULT_TYPE;
     }
-    if (!B2Context.getIsVersion(9, 1, 0)) {
-      exists = (Gradebook_v90.getColumn(b2Context, toolId, scaleType, points, scorable, visible, null, create) != null);
-    } else {
-      Lineitem lineitem = Gradebook.getColumn(b2Context, toolId, toolName, scaleType, points, scorable, visible, null, create);
-      if (lineitem != null) {
-        exists = true;
-        OutcomeDefinition def = lineitem.getOutcomeDefinition();
-        if ((def != null) && !toolName.equals(def.getTitle())) {
-          try {
-            def.setTitle(toolName);
-            def.persist();
-          } catch (ValidationException e) {
-          } catch (PersistenceException e) {
-          }
+    Lineitem lineitem = Gradebook.getColumn(b2Context, toolId, toolName, scaleType, points, scorable, visible, null, create);
+    if (lineitem != null) {
+      exists = true;
+      OutcomeDefinition def = lineitem.getOutcomeDefinition();
+      if ((def != null) && !toolName.equals(def.getTitle())) {
+        try {
+          def.setTitle(toolName);
+          def.persist();
+        } catch (ValidationException e) {
+        } catch (PersistenceException e) {
         }
       }
     }
@@ -888,6 +858,7 @@ public class Utils {
     query = query.replaceAll("&" + Constants.LTI_LOG + "=[^&]*", "");
     query = query.replaceAll("&" + Constants.LTI_ERROR_MESSAGE + "=[^&]*", "");
     query = query.replaceAll("&" + Constants.LTI_ERROR_LOG + "=[^&]*", "");
+    query = query.replaceAll("&globalNavigation=[^&]*", "");
     if (query.length() > 1) {
       query = query.substring(1);
     } else {
@@ -1140,10 +1111,8 @@ public class Utils {
         }
         params.put(Constants.TOOL_CUSTOM, custom.toString());
       }
-System.err.println(mapToString(params));
       params = checkXMLParams(b2Context, params, isDomain, isSystemTool, isContentItem);
     }
-System.err.println(mapToString(params));
 
     return params;
 
@@ -1187,6 +1156,8 @@ System.err.println(mapToString(params));
       extensionProps.put(Constants.TOOL_CONTEXT_TITLE, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_AVATAR, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_ROLES, Constants.DATA_TRUE);
+      extensionProps.put(Constants.TOOL_EXT_IROLES, Constants.DATA_TRUE);
+      extensionProps.put(Constants.TOOL_EXT_CROLES, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_USERIDTYPE, Constants.DATA_BATCHUID + Constants.DATA_USERNAME + Constants.DATA_STUDENTID + Constants.DATA_PRIMARYKEY);
       extensionProps.put(Constants.TOOL_USER_SOURCEDID, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_OPEN_IN, Constants.DATA_FRAME + Constants.DATA_FRAME_NO_BREADCRUMBS +
@@ -1405,11 +1376,11 @@ System.err.println(mapToString(params));
 
     boolean usingSystem = false;
     boolean usingUploaded = false;
-      Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
-      usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
-      if (!usingSystem) {
-        usingUploaded = MyPlacesUtil.getAvatarType().equals(AvatarType.user) && (userData.get(Setting.AVATAR_SHOW_USER.getKey())).equalsIgnoreCase("true");
-      }
+    Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
+    usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
+    if (!usingSystem) {
+      usingUploaded = MyPlacesUtil.getAvatarType().equals(AvatarType.user) && (userData.get(Setting.AVATAR_SHOW_USER.getKey())).equalsIgnoreCase("true");
+    }
 
     return usingSystem || usingUploaded;
 

@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,16 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.0.0 29-Jan-12  Added class to process UI requests
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12  Added options to handle content menu items
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.lti;
 
@@ -71,8 +61,6 @@ public class ToolsAction extends HttpServlet {
       prefix = Constants.TOOL_PARAMETER_PREFIX;
     }
     redirectUrl += "?" + Utils.getQuery(request);
-    String version = B2Context.getVersionNumber("");
-    boolean isv90 = version.compareTo("9.1.") < 0;
 
     boolean saveGlobal = false;
     boolean saveLocal = false;
@@ -117,7 +105,7 @@ public class ToolsAction extends HttpServlet {
           if (!isService) {
             Tool tool = new Tool(b2Context, toolId);
             doMashupDelete(b2Context, tool);
-            doMenuDelete(b2Context, tool);
+            doMenuDelete(tool);
             doCourseToolDelete(b2Context, tool);
             toolList.deleteTool(toolId);
           }
@@ -155,7 +143,7 @@ public class ToolsAction extends HttpServlet {
           doCourseToolDelete(b2Context, toolId);
         } else if (action.equals(Constants.ACTION_NOMENU)) {
           doMenuItemMenu(b2Context, toolId, null);
-        } else if (!isv90 && Constants.MENU_NAME.contains(action)) {
+        } else if (Constants.MENU_NAME.contains(action)) {
           doMenuItemMenu(b2Context, toolId, action);
         }
       }
@@ -199,13 +187,11 @@ public class ToolsAction extends HttpServlet {
 
   private void doMashupDelete(B2Context b2Context, Tool tool) {
 
-    if (B2Context.getIsVersion(9, 1, 0)) {
-      Utils.checkVTBEMashup(b2Context, false, tool.getId(), null, null);
-    }
+    Utils.checkVTBEMashup(b2Context, false, tool.getId(), null, null);
 
   }
 
-  private void doMenuDelete(B2Context b2Context, Tool tool) {
+  private void doMenuDelete(Tool tool) {
 
     MenuItem menuItem = tool.getMenuItem();
     if (menuItem != null) {

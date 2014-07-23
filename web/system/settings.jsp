@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,27 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10
-      1.1.3  1-Jan-11
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-                       Added option to allow instructors to create their own links
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12  Added cache settings
-                       Added option to enable VTBE mashup
-      2.3.0  5-Nov-12  Added option for passing institution roles
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13  Added timeout parameter
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -56,7 +35,6 @@
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
-  boolean isv91 = B2Context.getIsVersion(9, 1, 0);
   boolean enabledMashup = b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
 
   if (request.getMethod().equalsIgnoreCase("POST")) {
@@ -69,16 +47,14 @@
     b2Context.setSetting(Constants.TOOL_EXT_SETTING, b2Context.getRequestParameter(Constants.TOOL_EXT_SETTING, Constants.DATA_FALSE));
     b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
     b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, b2Context.getRequestParameter(Constants.TOOL_DELEGATE, Constants.DATA_FALSE));
-    if (isv91) {
-      b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, b2Context.getRequestParameter(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
-      boolean setMashup = b2Context.getRequestParameter(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
-      if (enabledMashup ^ setMashup) {
-        if (Utils.checkVTBEMashup(b2Context, setMashup)) {
-          if (setMashup) {
-            b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_TRUE);
-          } else {
-            b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE);
-          }
+    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, b2Context.getRequestParameter(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
+    boolean setMashup = b2Context.getRequestParameter(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+    if (enabledMashup ^ setMashup) {
+      if (Utils.checkVTBEMashup(b2Context, setMashup)) {
+        if (setMashup) {
+          b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_TRUE);
+        } else {
+          b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE);
         }
       }
     }
@@ -123,10 +99,8 @@
     params.put(Constants.TOOL_AVATAR, Constants.DATA_FALSE);
   }
   params.put(Constants.TOOL_DELEGATE, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE));
-  if (isv91) {
-    params.put(Constants.TOOL_COURSE_ROLES, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
-    params.put(Constants.MASHUP_PARAMETER, b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE));
-  }
+  params.put(Constants.TOOL_COURSE_ROLES, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
+  params.put(Constants.MASHUP_PARAMETER, b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE));
   if (B2Context.getIsVersion(9, 1, 8)) {
     params.put(Constants.AVAILABILITY_PARAMETER + params.get(Constants.AVAILABILITY_PARAMETER), Constants.DATA_TRUE);
     params.put(Constants.AVAILABILITY_PARAMETER + Constants.AVAILABILITY_DEFAULT_ON + "label",
@@ -178,15 +152,9 @@
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" id="stepThree" title="${bundle['page.system.settings.step3.title']}" instructions="${bundle['page.system.settings.step3.instructions']}">
-<%
-  if (isv91) {
-%>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.courseroles.label']}">
         <bbNG:checkboxElement isSelected="${params.courseroles}" name="<%=Constants.TOOL_COURSE_ROLES%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.courseroles.instructions']}" />
       </bbNG:dataElement>
-<%
-  }
-%>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.institutionroles.label']}">
         <bbNG:checkboxElement isSelected="${params.institutionroles}" name="<%=Constants.TOOL_INSTITUTION_ROLES%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.institutionroles.instructions']}" />
       </bbNG:dataElement>
@@ -196,14 +164,10 @@
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.delegate.label']}">
         <bbNG:checkboxElement isSelected="${params.delegate}" name="<%=Constants.TOOL_DELEGATE%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.delegate.instructions']}" />
       </bbNG:dataElement>
-<%
-  if (isv91) {
-%>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.mashup.label']}">
         <bbNG:checkboxElement isSelected="${params.mashup}" name="<%=Constants.MASHUP_PARAMETER%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.mashup.instructions']}" />
       </bbNG:dataElement>
 <%
-  }
   if (B2Context.getIsVersion(9, 1, 8)) {
 %>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.availability.label']}">

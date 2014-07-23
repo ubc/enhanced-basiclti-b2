@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,33 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10
-      1.1.3  1-Jan-11  Changed to use standard image files
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-                       Added support for paging of tool list
-                       Added option to allow instructors to create their own links
-      2.0.1 20-May-12  Fixed page doctype
-                       Added return to control panel tools page (including paging option)
-      2.1.0 18-Jun-12  Added "Open in" to tool summary table
-                       Updated mouseover titles to table entries
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13  Added remote configure option
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
-        import="blackboard.servlet.tags.ngui.ContextMenuTag,
+        import="java.net.URLEncoder,
+                blackboard.servlet.tags.ngui.ContextMenuTag,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Constants,
                 org.oscelot.blackboard.lti.Utils,
@@ -76,7 +54,8 @@
   String reorderingUrl = "reordertools?course_id=" + b2Context.getRequestParameter("course_id", "");
 %>
   <bbNG:jsBlock>
-  <script type="text/javascript">
+<script language="javascript" type="text/javascript">
+//<![CDATA[
   function doAction(value) {
     document.frmTools.action.value = value;
     document.frmTools.submit();
@@ -86,7 +65,8 @@
       doAction('delete');
     }
   }
-  </script>
+//]]>
+</script>
   </bbNG:jsBlock>
   <bbNG:pageHeader instructions="${instructions}">
     <bbNG:breadcrumbBar environment="CTRL_PANEL">
@@ -140,11 +120,6 @@
 <%
     String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + tool.getId() + ".";
     boolean isLocal = b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME).length() <= 0;
-    String target = "_self";
-    if (!tool.getSplash().equals(Constants.DATA_TRUE) && !tool.getUserHasChoice()) {
-      target = tool.getWindowName();
-    }
-    pageContext.setAttribute("target", target);
     if (!isLocal) {
 %>
         <bbNG:listContextMenu order="edit,${itemSeparator},availability,${itemSeparator},open">
@@ -154,7 +129,20 @@
         </bbNG:listContextMenu>
 <%
     } else if (allowLocal) {
+      String target = "_self";
+      if (!tool.getSplash().equals(Constants.DATA_TRUE) && !tool.getUserHasChoice()) {
+        target = tool.getWindowName();
+      }
+      pageContext.setAttribute("target", target);
       if (tool.getConfig().equals(Constants.DATA_TRUE)) {
+        String configUrl = b2Context.getPath() + "config.jsp?" + Constants.TOOL_ID + "=" + tool.getId() +
+           "&" + Constants.PAGE_PARAMETER_NAME + "=" + Constants.COURSE_TOOLS_PAGE + "&" + Utils.getQuery(request);
+        if (B2Context.getIsVersion(9, 1, 201404)) {
+          configUrl = "/webapps/blackboard/content/contentWrapper.jsp?" +
+                "displayName=" + URLEncoder.encode(tool.getName(), "UTF-8") +
+                "&href=" + URLEncoder.encode(configUrl, "UTF-8");
+        }
+        pageContext.setAttribute("configUrl", configUrl);
 %>
         <bbNG:listContextMenu order="register,data,launch,${itemSeparator},availability,${itemSeparator},xml,delete,${itemSeparator},open,${itemSeparator},config">
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.register']}" url="tool.jsp?${id}&${query}" id="register" />
@@ -164,7 +152,7 @@
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}&${query}" target="_blank" id="xml" />
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}${list}&${query}" target="${target}" id="open" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="../config.jsp?${id}${list}&${query}" target="${target}" id="config" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="${configUrl}" target="${target}" id="config" />
         </bbNG:listContextMenu>
 <%
       } else {

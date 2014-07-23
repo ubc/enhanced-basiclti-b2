@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,14 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.1.0 18-Jun-12  Added to release
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12  Added support for new Content Editor in SP10
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -80,6 +72,7 @@
   </bbNG:pageHeader>
   <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
+//<![CDATA[
 var lti_url = '${serverUrl}';
 var lti_path = '${serverPath}';
 var lti_query = '${serverQuery}';
@@ -207,6 +200,7 @@ function doOnSubmit() {
   }
   return ok;
 }
+//]]>
 </script>
   </bbNG:jsBlock>
   <bbNG:form action="link.jsp?course_id=${courseId}" method="post" onsubmit="return doOnSubmit();">

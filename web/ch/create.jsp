@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,27 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-                       Updated for alternative schema name in Learn 9.1
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10
-      1.1.3  1-Jan-11
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11  Added custom parameters option
-      1.2.2 13-Oct-11  Fixed bug with creating content item not persisting position value
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12  Added "By URL" and "By XML" options
-                       Changed to use default render type
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12  Added grade column options when defining tools by URL
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13  Added option to define via XML using a URL
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -61,7 +40,6 @@
                 blackboard.servlet.tags.ngui.datacollection.fields.TextboxTag,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Gradebook,
-                org.oscelot.blackboard.lti.Gradebook_v90,
                 org.oscelot.blackboard.lti.Constants,
                 org.oscelot.blackboard.lti.ToolList,
                 org.oscelot.blackboard.lti.Tool,

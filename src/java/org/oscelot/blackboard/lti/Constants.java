@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,22 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.1.2  9-Oct-10  Constants moved to a this Class to share between Java and JSP code
-      1.1.3  1-Jan-11  Added constants for User ID type and image file locations
-      1.2.0 17-Sep-11  Added constants for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11  Added LTI_EXT_LMS constant
-      2.0.0 29-Jan-12  Added LTI 1.1 support
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12  Added constants for XML and updated image alt text
-      2.2.0  2-Sep-12  Added constants for content page menus and cache
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12  Added constants for grade column options
-      3.0.0 30-Oct-13
-      3.0.1  5-Nov-13  Changed new message type names to camel case
 */
 package org.oscelot.blackboard.lti;
 
@@ -94,6 +78,8 @@ public class Constants {
   public static final String TOOL_CONTEXT_TITLE = "contexttitle";
   public static final String TOOL_AVATAR = "avatar";
   public static final String TOOL_ROLES = "roles";
+  public static final String TOOL_EXT_IROLES = "ext_iroles";
+  public static final String TOOL_EXT_CROLES = "ext_croles";
   public static final String TOOL_USERID = "userid";
   public static final String TOOL_USERIDTYPE = "useridtype";
   public static final String TOOL_USER_SOURCEDID = "usersourcedid";
@@ -138,6 +124,7 @@ public class Constants {
   public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
   public static final String TOOL_ENCRYPT_KEY = "encrypt_salt";
   public static final String TOOL_ENCRYPT_EMAIL_DOMAIN = "encrypt_email_domain";
+
 
 // Message types
   public static final String MESSAGE_CONFIG = "config";
@@ -313,6 +300,7 @@ public class Constants {
   public static final int TIMEOUT = 30000;
   public static final String CACHE_OPTION = "0";
   public static final String TAB_PARAMETER_NAME = "tab_tab_group_id";
+  public static final String COURSE_TAB_PARAMETER_NAME = "cmp_tab_id";
   public static final String DEFAULT_POINTS_POSSIBLE = "100";
 
 // Names of content item menu areas

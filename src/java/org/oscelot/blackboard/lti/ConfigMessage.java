@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      3.0.0 30-Oct-13  Added to release
 */
 package org.oscelot.blackboard.lti;
 
@@ -38,10 +35,15 @@ public class ConfigMessage extends LtiMessage {
     if (query.length() > 0) {
       query = query.substring(1) + "&";
     }
+    String returnUrl = b2Context.getServerUrl() + b2Context.getPath() + "return.jsp?" + query;
     String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
-    String returnUrl = b2Context.getServerUrl() + b2Context.getPath() + "return.jsp?" + query +
-       Constants.PAGE_PARAMETER_NAME + "=" + sourcePage;
+    if (sourcePage.length() > 0) {
+      returnUrl += Constants.PAGE_PARAMETER_NAME + "=" + sourcePage + "&";
+    }
     this.props.setProperty("launch_presentation_return_url", returnUrl);
+    if (this.props.getProperty("launch_presentation_document_target").equals("iframe")) {
+      this.props.setProperty("launch_presentation_document_target", "frame");
+    }
 
     String customParameters = b2Context.getSetting(this.settingPrefix + Constants.TOOL_CUSTOM, "");
     customParameters = customParameters.replaceAll("\\r\\n", "\n");

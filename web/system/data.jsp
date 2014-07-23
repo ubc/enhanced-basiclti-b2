@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,27 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added OpenIn and WindowName settings
-                       Corrected names of LTI roles
-      1.1.3  1-Jan-11  Added User ID type option
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12  Remove resource file option
-                       Added default mappings for institution roles
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -50,7 +29,8 @@
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.lti.ToolList,
-                org.oscelot.blackboard.lti.Constants"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.data.title']}" entitlement="system.admin.VIEW">
@@ -95,6 +75,8 @@
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_KEY, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_IROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_CROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
     for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
       CourseRole role = iter.next();
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(), b2Context.getRequestParameterValues(Constants.TOOL_ROLE + role.getIdentifier(), ""));
@@ -152,6 +134,8 @@
   params.put(Constants.TOOL_ENCRYPT_DATA, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
   params.put(Constants.TOOL_ENCRYPT_KEY, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, ""));
   params.put(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
+  params.put(Constants.TOOL_EXT_IROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_EXT_CROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
   for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
     CourseRole role = iter.next();
     params.put(Constants.TOOL_ROLE + role.getIdentifier(), b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier()));
@@ -256,15 +240,23 @@
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.roles.label']}">
         <bbNG:checkboxElement isSelected="${params.roles}" name="<%=Constants.TOOL_ROLES%>" value="true" helpText="${bundle['page.system.data.step2.roles.instructions']}" />
-      </bbNG:dataElement>
-      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption.label']}">
-        <bbNG:checkboxElement isSelected="${params.encrypt_data}" name="<%=Constants.TOOL_ENCRYPT_DATA%>" value="true" helpText="${bundle['page.system.data.step2.encryption.instructions']}" />
-      </bbNG:dataElement>
-      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_key.label']}">
-        <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_KEY%>" value="<%=params.get(Constants.TOOL_ENCRYPT_KEY)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_key.instructions']}" />
-      </bbNG:dataElement>
-      <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_email_domain.label']}">
-        <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_EMAIL_DOMAIN%>" value="<%=params.get(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_email_domain.instructions']}" />
+        <bbNG:dataElement isSubElement="true" subElementType="INDENTED_NESTED_LIST">
+          <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.ext_iroles.label']}">
+            <bbNG:checkboxElement isSelected="${params.ext_iroles}" name="<%=Constants.TOOL_EXT_IROLES%>" value="true" helpText="${bundle['page.system.data.step2.ext_iroles.instructions']}" />
+          </bbNG:dataElement>
+          <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.ext_croles.label']}">
+            <bbNG:checkboxElement isSelected="${params.ext_croles}" name="<%=Constants.TOOL_EXT_CROLES%>" value="true" helpText="${bundle['page.system.data.step2.ext_croles.instructions']}" />
+          </bbNG:dataElement>
+        </bbNG:dataElement>
+		<bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption.label']}">
+			<bbNG:checkboxElement isSelected="${params.encrypt_data}" name="<%=Constants.TOOL_ENCRYPT_DATA%>" value="true" helpText="${bundle['page.system.data.step2.encryption.instructions']}" />
+		</bbNG:dataElement>
+		<bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_key.label']}">
+			<bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_KEY%>" value="<%=params.get(Constants.TOOL_ENCRYPT_KEY)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_key.instructions']}" />
+		</bbNG:dataElement>
+		<bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_email_domain.label']}">
+			<bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_EMAIL_DOMAIN%>" value="<%=params.get(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_email_domain.instructions']}" />
+		</bbNG:dataElement>
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step3.title']}" instructions="${bundle['page.system.data.step3.instructions']}">

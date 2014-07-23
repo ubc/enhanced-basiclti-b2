@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,10 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.3.2  3-Apr-13  Added to release
-      3.0.0 30-Oct-13
 */
 package org.oscelot.blackboard.lti;
 
@@ -61,7 +57,7 @@ public class DashboardFeed {
   private Module module = null;
   private String launchUrl = null;
   private Tool tool = null;
-  private Date date = Calendar.getInstance().getTime();
+  private Date date = null;
   private String iconUrl = null;
   private String iconTitle = null;
   private String content = null;
@@ -73,6 +69,7 @@ public class DashboardFeed {
     this.module = module;
     this.tool = tool;
     this.launchUrl = launchUrl;
+    this.date = Calendar.getInstance().getTime();
     this.items = new ArrayList<CollapsibleListItem>();
     getFeed();
 
@@ -115,7 +112,6 @@ public class DashboardFeed {
       if (data == null) {
         data = readUrlAsString(contentUrl);
         stringCache.putString(key, data);
-        this.date = Calendar.getInstance().getTime();
       } else {
         this.date = stringCache.getStringDate(key);
       }

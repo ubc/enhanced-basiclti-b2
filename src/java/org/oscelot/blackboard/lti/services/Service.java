@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      3.0.0 30-Oct-13  Added to release
 */
 package org.oscelot.blackboard.lti.services;
 
@@ -27,8 +24,6 @@ import java.util.List;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -147,7 +142,6 @@ public abstract class Service {
     if (className.length() > 0) {
       try {
         serviceClass = Class.forName(className);
-//        service = (Service)serviceClass.newInstance();
         Constructor constructor = serviceClass.getDeclaredConstructor(B2Context.class);
         constructor.setAccessible(true);
         service = (Service)constructor.newInstance(b2Context);
@@ -175,13 +169,15 @@ public abstract class Service {
 
   public String parseValue(String value) {
 
-    if (this.resources == null) {
-      this.resources = this.getResources();
-    }
-    if (this.resources != null) {
-      for (Iterator<Resource> iter = this.resources.iterator(); iter.hasNext();) {
-        Resource resource = iter.next();
-        value = resource.parseValue(value);
+    if ((this.tool != null) && this.tool.getHasService(this.getId()).equals(Constants.DATA_TRUE)) {
+      if (this.resources == null) {
+        this.resources = this.getResources();
+      }
+      if (this.resources != null) {
+        for (Iterator<Resource> iter = this.resources.iterator(); iter.hasNext();) {
+          Resource resource = iter.next();
+          value = resource.parseValue(value);
+        }
       }
     }
 

@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,28 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-                       Updated for alternative schema name in Learn 9.1
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10
-      1.1.3  1-Jan-11
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11  Added custom parameters option
-      1.2.2 13-Oct-11  Fixed bug with creating content item not persisting position value
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12  Added availability and groups options
-                       Changed to use default render type
-      2.2.0  2-Sep-12  Hide key and secret fields when configured in a related domain
-                       Keep gradebook column name in sync with content item title
-      2.3.0  5-Nov-12  Added option to create grade center column
-      2.3.1 17-Dec-12  Added grade column options
-      2.3.2  3-Apr-13
-      3.0.0 30-Oct-13  Added "Submit and launch" option
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -160,10 +138,7 @@
     if (name.length() > 0) {
       content.setTitle(name);
     }
-    String paramName = Constants.TOOL_DESCRIPTION;
-    if (B2Context.getIsVersion(9, 1, 0)) {
-      paramName += "_";
-    }
+    String paramName = Constants.TOOL_DESCRIPTION + "_";
     FormattedText text = TextboxTag.getFormattedText(request, paramName);
     content.setBody(text);
     if (!content.getRenderType().equals(Content.RenderType.DEFAULT)) {
@@ -244,11 +219,8 @@
       error = b2Context.getResourceString("page.content.modify.nodomain.warning");
     }
 
-    if (b2Context.getRequestParameter("launch", Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
-      cancelUrl = "/webapps/blackboard/content/contentWrapper.jsp" +
-                  "?content_id=" + contentId + "&course_id=" + courseId + "&navItem=content" +
-                  "&displayName=" + URLEncoder.encode(name, "UTF-8") +
-                  "&href=" + URLEncoder.encode(b2Context.getPath() + "tool.jsp?course_id=" + courseId + "&content_id=" + contentId, "UTF-8");
+    if (b2Context.getRequestParameter("action", "").equals("launch")) {
+      cancelUrl = b2Context.getPath() + "tool.jsp?course_id=" + courseId + "&content_id=" + contentId;
     } else {
       cancelUrl = b2Context.setReceiptOptions(cancelUrl,
          b2Context.getResourceString("page.receipt.success"), error);
@@ -361,12 +333,14 @@
   </bbNG:pageHeader>
 <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
-function doLaunch() {
-  var el = document.getElementById('id_launch');
-  el.value = 'true';
+//<![CDATA[
+function doAction(action) {
+  var el = document.getElementById('id_action');
+  el.value = action;
   document.frmModify.submit();
   return true;
 }
+//]]>
 </script>
 </bbNG:jsBlock>
   <bbNG:form name="frmModify" action="modify.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return validateForm();">
@@ -568,8 +542,8 @@ function doLaunch() {
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="<%=cancelUrl%>">
-      <input type="hidden" name="launch" id="id_launch" value="false" />
-      <bbNG:stepSubmitButton label="${bundle['button.submitandlaunch.label']}" onClick="return doLaunch();" />
+      <input type="hidden" name="action" id="id_action" value="" />
+      <bbNG:stepSubmitButton label="${bundle['button.submitandlaunch.label']}" onClick="doAction('launch');" />
       <bbNG:stepSubmitButton label="${bundle['button.submit.label']}" primary="true" />
     </bbNG:stepSubmit>
   </bbNG:dataCollection>
