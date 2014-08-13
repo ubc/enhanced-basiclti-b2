@@ -20,6 +20,12 @@
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Iterator;
+
 import blackboard.data.course.CourseMembership.Role;
 import blackboard.persist.Id;
 import blackboard.data.user.User;
@@ -40,11 +46,8 @@ import org.oscelot.blackboard.lti.Tool;
 import org.oscelot.blackboard.lti.Utils;
 import org.oscelot.blackboard.lti.Constants;
 
-import java.util.*;
-
 import ca.ubc.ctlt.encryption.Encryption;
 import ca.ubc.ctlt.encryption.UserWrapper;
-
 
 public class Memberships implements Action {
 
@@ -151,7 +154,6 @@ public class Memberships implements Action {
               user = new UserWrapper(user, new Encryption(tool.getEncryptKey()), tool.isEncryptData());
               ((UserWrapper)user).setPseudoDomain(tool.getEncryptEmailDoamin());
 
-
               if (userIdType.equals(Constants.DATA_USERNAME)) {
                 userId = user.getUserName();
               } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
@@ -189,6 +191,13 @@ public class Memberships implements Action {
                 member = member.append("      <person_name_given>").append(user.getGivenName()).append("</person_name_given>\n");
                 member = member.append("      <person_name_family>").append(user.getFamilyName()).append("</person_name_family>\n");
                 member = member.append("      <person_name_full>").append(((UserWrapper)user).getFullName()).append("</person_name_full>\n");
+				// Original
+                /*String fullname = user.getGivenName();
+                if ((user.getMiddleName() != null) && (user.getMiddleName().length() > 0)) {
+                  fullname += " " + user.getMiddleName();
+                }
+                fullname += " " + user.getFamilyName();
+                member = member.append("      <person_name_full>").append(fullname).append("</person_name_full>\n");*/
               }
               if (role.equals(Role.STUDENT) && tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
                 String resultSourcedid = Utils.getServiceId(serviceData, userId, tool.getSendUUID());

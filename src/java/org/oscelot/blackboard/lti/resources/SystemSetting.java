@@ -171,7 +171,7 @@ public class SystemSetting extends Resource {
 
     String url = this.getEndpoint();
     url = url.replaceAll("\\{tool_proxy_guid\\}", this.getService().getTool().getId());
-    value = value.replaceAll("\\$ToolProxy.custom.uri", url);
+    value = value.replaceAll("\\$ToolProxy.custom.url", url);
 
     return value;
 

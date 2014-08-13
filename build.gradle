@@ -9,7 +9,7 @@ apply plugin: "idea"
 
 // define the version for the project when publishing to maven
 group "ca.ubc"
-version "3.0.2001-SNAPSHOT"
+version "3.0.3001-SNAPSHOT"
 
 webAppDirName = file("web")
 
@@ -74,7 +74,8 @@ dependencies {
 
     buildUtils "org.oscelot:b2deploy-task:0.1.0"
 
-    compile "com.spvsoftwareproducts:b2context:1.3.00",
+    compile "com.spvsoftwareproducts:b2context:1.4.01",
+			'org.oscelot.blackboard:lti-assessment:1.0',
             'commons-httpclient:commons-httpclient:3.1',
             'org.jdom:jdom:1.1.3',
             'net.sf.json-lib:json-lib:2.4:jdk15',

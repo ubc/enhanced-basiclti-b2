@@ -48,10 +48,10 @@ public class ConfigMessage extends LtiMessage {
     String customParameters = b2Context.getSetting(this.settingPrefix + Constants.TOOL_CUSTOM, "");
     customParameters = customParameters.replaceAll("\\r\\n", "\n");
     if (this.tool.getHasService(Constants.RESOURCE_PROFILE).equals(Constants.DATA_TRUE)) {
-      customParameters += "\ntc_profile_url=$ToolConsumerProfile.uri";
+      customParameters += "\ntc_profile_url=$ToolConsumerProfile.url";
     }
     if (this.tool.getHasService(Constants.RESOURCE_SETTING).equals(Constants.DATA_TRUE)) {
-      customParameters += "\nsystem_setting_url=$ToolProxy.custom.uri";
+      customParameters += "\nsystem_setting_url=$ToolProxy.custom.url";
     }
     String[] items = customParameters.split("\\n");
     addParameters(b2Context, items, false);
