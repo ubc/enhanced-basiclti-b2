@@ -53,6 +53,9 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EMAIL, b2Context.getRequestParameter(Constants.TOOL_EMAIL, Constants.DATA_NOTUSED));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLES, b2Context.getRequestParameter(Constants.TOOL_ROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_KEY, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_IROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_CROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
     for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
@@ -99,6 +102,9 @@
     params.put(Constants.TOOL_AVATAR, Constants.DATA_FALSE);
   }
   params.put(Constants.TOOL_ROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_ENCRYPT_DATA, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_ENCRYPT_KEY, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, ""));
+  params.put(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
   params.put(Constants.TOOL_EXT_IROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
   params.put(Constants.TOOL_EXT_CROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
   for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
@@ -205,6 +211,15 @@
           <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.ext_croles.label']}">
             <bbNG:checkboxElement isSelected="${params.ext_croles}" name="<%=Constants.TOOL_EXT_CROLES%>" value="true" helpText="${bundle['page.system.data.step2.ext_croles.instructions']}" />
           </bbNG:dataElement>
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption.label']}">
+            <bbNG:checkboxElement isSelected="${params.encrypt_data}" name="<%=Constants.TOOL_ENCRYPT_DATA%>" value="true" helpText="${bundle['page.system.data.step2.encryption.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_key.label']}">
+            <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_KEY%>" value="<%=params.get(Constants.TOOL_ENCRYPT_KEY)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_key.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_email_domain.label']}">
+            <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_EMAIL_DOMAIN%>" value="<%=params.get(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_email_domain.instructions']}" />
         </bbNG:dataElement>
       </bbNG:dataElement>
     </bbNG:step>
