@@ -27,7 +27,6 @@
                 blackboard.data.role.PortalRole,
                 blackboard.platform.security.CourseRole,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.lti.ToolList,
                 org.oscelot.blackboard.lti.Constants,
                 org.oscelot.blackboard.lti.Utils"
