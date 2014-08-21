@@ -431,7 +431,11 @@ public class Tool {
       return this.getToolSetting(Constants.TOOL_ENCRYPT_KEY, "");
   }
 
-  public String getEncryptEmailDoamin() {
+  public boolean isRandomEmailName() {
+      return this.getToolSetting(Constants.TOOL_ENCRYPT_EMAIL_RANDOM_NAME).equals("true");
+  }
+
+  public String getEncryptEmailDomain() {
       return this.getToolSetting(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, "");
   }
   

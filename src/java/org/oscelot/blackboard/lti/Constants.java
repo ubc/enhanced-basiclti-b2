@@ -123,6 +123,7 @@ public class Constants {
   public static final String TOOL_COURSEID = "courseid";
   public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
   public static final String TOOL_ENCRYPT_KEY = "encrypt_salt";
+  public static final String TOOL_ENCRYPT_EMAIL_RANDOM_NAME = "encrypt_email_random_name";
   public static final String TOOL_ENCRYPT_EMAIL_DOMAIN = "encrypt_email_domain";
 
 

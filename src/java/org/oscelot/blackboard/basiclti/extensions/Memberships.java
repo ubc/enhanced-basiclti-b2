@@ -152,7 +152,8 @@ public class Memberships implements Action {
               // replace the user object with UserWrapper, which will return encrypted values
               // Overriding user object is bad, but this is a hack to minimize the changes to the code below
               user = new UserWrapper(user, new Encryption(tool.getEncryptKey()), tool.isEncryptData());
-              ((UserWrapper)user).setPseudoDomain(tool.getEncryptEmailDoamin());
+              ((UserWrapper)user).setPseudoDomain(tool.getEncryptEmailDomain());
+              ((UserWrapper)user).setRandomEmailName(tool.isRandomEmailName());
 
               if (userIdType.equals(Constants.DATA_USERNAME)) {
                 userId = user.getUserName();

@@ -2,6 +2,10 @@ package ca.ubc.ctlt.encryption;
 
 import blackboard.data.user.User;
 import blackboard.persist.Id;
+import org.apache.commons.codec.binary.Hex;
+import java.nio.charset.Charset;
+
+import java.security.MessageDigest;
 
 /**
  * A wrapper class of BB user class with encryption feature.
@@ -12,6 +16,7 @@ public class UserWrapper extends User {
 	private User user;
     private Encryption encryptor;
     private boolean isEncrypt;
+    private boolean isRandomEmailName = false;
     private String pseudoDomain;
 
     public UserWrapper(User user, Encryption encryptor, boolean isEncrypt) {
@@ -20,6 +25,10 @@ public class UserWrapper extends User {
         this.isEncrypt = isEncrypt;
         // use user ID external string as initialization vector
         this.encryptor.setIv(user.getId().getExternalString());
+    }
+
+    public void setRandomEmailName(boolean isRandomEmailName) {
+        this.isRandomEmailName = isRandomEmailName;
     }
 
     public void setPseudoDomain(String pseudoDomain) {
@@ -51,16 +60,29 @@ public class UserWrapper extends User {
     }
 
     public String getEmailAddress() {
+        if (!isEncrypt) {
+            return user.getEmailAddress();
+        }
+
         String value = user.getEmailAddress();
         if (value == null) {
             return null;
         }
         String[] email = value.split("@");
 
+        if (isRandomEmailName) {
+            // generate a random string for email name. Using 25 characters to avoid collision with the really ones.
+            // Gmail allow 30 max.
+            email[0] = new String(Hex.encodeHex(Encryption.hashKey(email[0]))).substring(0, 25);
+        } else {
+            // or encrypt the email name
+            email[0] = encryptor.encrypt(email[0]);
+        }
+
         String domain = email.length > 1 ? email[1] : "";
         domain = (null == pseudoDomain || pseudoDomain.isEmpty()) ? domain : pseudoDomain;
-
-        return isEncrypt ? encryptor.encrypt(email[0]) + "@" + domain : user.getEmailAddress();
+        System.out.print(email[0] + "@" + domain);
+        return email[0] + "@" + domain;
     }
 
     public String getGivenName() {

@@ -55,6 +55,7 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLES, b2Context.getRequestParameter(Constants.TOOL_ROLES, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_KEY, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_RANDOM_NAME, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_EMAIL_RANDOM_NAME, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_IROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_CROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
@@ -104,6 +105,7 @@
   params.put(Constants.TOOL_ROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
   params.put(Constants.TOOL_ENCRYPT_DATA, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_DATA, Constants.DATA_FALSE));
   params.put(Constants.TOOL_ENCRYPT_KEY, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_KEY, ""));
+  params.put(Constants.TOOL_ENCRYPT_EMAIL_RANDOM_NAME, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_RANDOM_NAME, Constants.DATA_FALSE));
   params.put(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
   params.put(Constants.TOOL_EXT_IROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
   params.put(Constants.TOOL_EXT_CROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
@@ -217,6 +219,9 @@
         </bbNG:dataElement>
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_key.label']}">
             <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_KEY%>" value="<%=params.get(Constants.TOOL_ENCRYPT_KEY)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_key.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_email_random_name.label']}">
+            <bbNG:checkboxElement isSelected="${params.encrypt_email_random_name}" name="<%=Constants.TOOL_ENCRYPT_EMAIL_RANDOM_NAME%>" value="true" helpText="${bundle['page.system.data.step2.encryption_email_random_name.instructions']}" />
         </bbNG:dataElement>
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption_email_domain.label']}">
             <bbNG:textElement type="string" name="<%=Constants.TOOL_ENCRYPT_EMAIL_DOMAIN%>" value="<%=params.get(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN)%>" size="80" helpText="${bundle['page.system.data.step2.encryption_email_domain.instructions']}" />

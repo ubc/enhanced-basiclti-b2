@@ -98,7 +98,8 @@ public class LtiMessage {
 
 // User parameters
     this.user = new UserWrapper(context.getUser(), new Encryption(tool.getEncryptKey()), tool.isEncryptData());
-    ((UserWrapper)this.user).setPseudoDomain(tool.getEncryptEmailDoamin());
+    ((UserWrapper)this.user).setPseudoDomain(tool.getEncryptEmailDomain());
+    ((UserWrapper)this.user).setRandomEmailName(tool.isRandomEmailName());
 
     String userId;
     if (this.tool.getDoSendUserId()) {

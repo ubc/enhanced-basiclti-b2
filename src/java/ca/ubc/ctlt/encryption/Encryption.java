@@ -211,12 +211,13 @@ public class Encryption {
     }
 
     /**
-     * Generate the SHA-1 hash of the string. Only first 16 bytes are returned
+     * Generate the SHA-1 hash of the string and return specified length
      *
      * @param original original string
-     * @return         first 16 bytes of the hash
+     * @param length   length needed to be returned
+     * @return         the hash of the string with specified length
      */
-    private byte[] hashKey(String original) {
+    public static byte[] hash(String original, int length) {
         byte[] key;
         try {
             key = original.getBytes("UTF-8");
@@ -226,6 +227,24 @@ public class Encryption {
             throw new RuntimeException(e);
         }
 
-        return Arrays.copyOf(key, 16); // use only first 128 bit
+        if (length == 0) {
+            return key;
+        } else {
+            return Arrays.copyOf(key, length); // use only first "length" bit
+        }
+    }
+
+    public static byte[] hash(String original) {
+        return hash(original, 0);
+    }
+
+    /**
+     * Generate the SHA-1 hash of the string. Only first 16 bytes are returned
+     *
+     * @param original original string
+     * @return         first 16 bytes of the hash
+     */
+    public static byte[] hashKey(String original) {
+        return hash(original, 16);
     }
 }
