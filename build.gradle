@@ -9,7 +9,7 @@ apply plugin: "idea"
 
 // define the version for the project when publishing to maven
 group "ca.ubc"
-version "3.0.3001-SNAPSHOT"
+version "3.0.3002-SNAPSHOT"
 
 webAppDirName = file("web")
 
