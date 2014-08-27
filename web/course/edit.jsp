@@ -29,7 +29,7 @@
                 org.oscelot.blackboard.lti.Tool"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.course.edit.title']}">
+<bbNG:learningSystemPage title="${bundle['page.course.edit.title']}" entitlement="course.content.MODIFY">
 <%
   B2Context b2Context = new B2Context(request);
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, "");

@@ -31,7 +31,7 @@
                 org.oscelot.blackboard.lti.Constants"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.system.data.title']}" entitlement="system.admin.VIEW">
+<bbNG:learningSystemPage title="${bundle['page.system.data.title']}" entitlement="course.content.MODIFY">
 <%
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);

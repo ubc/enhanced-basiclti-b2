@@ -28,7 +28,7 @@
                 org.oscelot.blackboard.lti.ToolList"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['plugin.name']}">
+<bbNG:learningSystemPage title="${bundle['plugin.name']}" entitlement="course.content.MODIFY">
 <%
   B2Context b2Context = new B2Context(request);
   Utils.checkCourse(b2Context);
