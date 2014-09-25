@@ -12,6 +12,8 @@ group "ca.ubc"
 version "3.0.3003"
 
 webAppDirName = file("web")
+sourceCompatibility = '1.7'
+targetCompatibility = '1.7'
 
 sourceSets {
     main {
