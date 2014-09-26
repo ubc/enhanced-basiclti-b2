@@ -92,12 +92,11 @@ public class ServiceList {
           key = iter.next();
           service = Service.getServiceFromClassName(this.b2Context, key);
           if (service != null) {
-            doSave = true;
             prefix = Constants.SERVICE_PARAMETER_PREFIX + "." + service.getId();
-            b2Context.setSetting(prefix, Constants.DATA_FALSE);
-            b2Context.setSetting(prefix + "." + Constants.TOOL_NAME, service.getName());
-            b2Context.setSetting(prefix + "." + Constants.SERVICE_CLASS, key);
-            b2Context.setSetting(prefix + "." + Constants.SERVICE_UNSIGNED, STANDARD_SERVICES.get(key));
+            doSave |= setSettingIfDifferent(b2Context, prefix, Constants.DATA_FALSE);
+            doSave |= setSettingIfDifferent(b2Context, prefix + "." + Constants.TOOL_NAME, service.getName());
+            doSave |= setSettingIfDifferent(b2Context, prefix + "." + Constants.SERVICE_CLASS, key);
+            doSave |= setSettingIfDifferent(b2Context, prefix + "." + Constants.SERVICE_UNSIGNED, STANDARD_SERVICES.get(key));
           }
         }
         if (doSave) {
@@ -142,6 +141,18 @@ public class ServiceList {
   public void persist() {
 
     this.b2Context.persistSettings();
+
+  }
+
+  private static boolean setSettingIfDifferent(final B2Context b2Context, final String key, final String value) {
+
+    final String oldValue = b2Context.getSetting(key);
+
+    if ((oldValue == null && value != null) || (oldValue != null && !oldValue.equals(value))) {
+      b2Context.setSetting(key, value);
+      return true;
+    }
+    return false;
 
   }
 
