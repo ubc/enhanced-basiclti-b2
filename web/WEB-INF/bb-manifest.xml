@@ -5,7 +5,7 @@
     <description value="plugin.description" />
     <handle value="BasicLTI" />
     <default-locale value="en_US" />
-	  <version value="3.0.3003" />
+	  <version value="3.0.5001" />
     <webapp-type value="javaext" />
 	  <requires>
  	    <bbversion value="9.1.0" />
@@ -81,7 +81,7 @@
       </module-type>
     </module-defs>
 	  <permissions>
-      <permission type="java.net.SocketPermission" name="*" actions="connect" />
+      <permission type="java.net.SocketPermission" name="*" actions="connect,listen,resolve" />
       <permission type="attribute" name="user.personalinfo" actions="get" />
       <permission type="attribute" name="user.authinfo" actions="get" />
       <permission type="persist" name="Content" actions="create,modify" />
@@ -92,6 +92,7 @@
       <permission type="persist" name="GroupAssignment" actions="create,delete" />
       <permission type="persist" name="ContentHandler" actions="create,modify,delete" />
       <permission type="java.lang.reflect.ReflectPermission" name="suppressAccessChecks" />
+      <permission type="java.io.FilePermission" name="&amp;lt;&amp;lt;ALL FILES&amp;gt;&amp;gt;" actions="read,write,delete" />
     </permissions>
   </plugin>
 </manifest>
