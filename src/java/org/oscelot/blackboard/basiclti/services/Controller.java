@@ -34,6 +34,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import ca.ubc.ctlt.encryption.Encryption;
 import org.jdom.Document;
 import org.jdom.Element;
 
@@ -205,12 +206,17 @@ public class Controller extends HttpServlet {
       ok = key.equals(this.tool.getLaunchGUID());
     }
     if (ok) {
+      Encryption encryptInstance = new Encryption(tool.getEncryptKey());
       this.servicesData = new ArrayList<String>();
       StringBuilder hash = new StringBuilder();
       for (int i = 1; i < data.length; i++) {
         String item = Utils.decodeHash(data[i]);
-        this.servicesData.add(item);
         hash.append(item);
+        if (tool.isEncryptData() && i == 4) {
+          // using default IV to decrypt user ID, which is on the 4th position of data
+          item = encryptInstance.decrypt(item);
+        }
+        this.servicesData.add(item);
       }
       ok = Utils.getHash(hash.toString(), this.tool.getSendUUID()).equals(Utils.decodeHash(data[0]));
     }

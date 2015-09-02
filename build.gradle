@@ -9,7 +9,7 @@ apply plugin: "idea"
 
 // define the version for the project when publishing to maven
 group "ca.ubc"
-version "3.0.5001"
+version "3.0.5002"
 
 webAppDirName = file("web")
 sourceCompatibility = '1.7'
@@ -37,7 +37,7 @@ sourceSets {
 
 ext {
     learnVersion = "9.1.201410.160373"
-    deployServer = "137.82.12.113"
+    deployServer = "127.0.0.1:9876"
     deployInstance = "BBLEARN"
 }
 

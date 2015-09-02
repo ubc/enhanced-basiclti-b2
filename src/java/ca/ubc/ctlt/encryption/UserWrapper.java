@@ -3,9 +3,7 @@ package ca.ubc.ctlt.encryption;
 import blackboard.data.user.User;
 import blackboard.persist.Id;
 import org.apache.commons.codec.binary.Hex;
-import java.nio.charset.Charset;
 
-import java.security.MessageDigest;
 
 /**
  * A wrapper class of BB user class with encryption feature.
