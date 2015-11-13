@@ -100,6 +100,7 @@ public class Response {
 
     StringBuilder xml = new StringBuilder();
 
+    xml.append("<?xml version = \"1.0\" encoding = \"UTF-8\"?>\n");
     xml.append("<imsx_POXEnvelopeResponse xmlns=\"http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0\">\n");
     xml.append("  <imsx_POXHeader>\n");
     xml.append("    <imsx_POXResponseHeaderInfo>\n");
