@@ -115,7 +115,7 @@
   pageContext.setAttribute("iconUrl", iconUrl);
   pageContext.setAttribute("params", params);
 %>
-<bbNG:modulePage type="admin" title="${bundle['page.module.admin.title']}" iconUrl="${iconUrl}">
+<bbNG:modulePage type="admin" title="${bundle['page.module.admin.title']}" iconUrl="${iconUrl}" entitlement="system.admin.VIEW">
   <bbNG:pageHeader instructions="${bundle['page.module.admin.instructions']}">
     <bbNG:breadcrumbBar>
       <bbNG:breadcrumb title="${bundle['page.module.admin.title']}" />

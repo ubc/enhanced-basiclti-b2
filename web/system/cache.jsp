@@ -21,8 +21,10 @@
 <%@page import="com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.utils.StringCache,
                 org.oscelot.blackboard.utils.StringCacheFile,
-                org.oscelot.blackboard.lti.Constants" %>
+                org.oscelot.blackboard.lti.Constants,
+                blackboard.platform.security.SecurityUtil" %>
 <%
+  SecurityUtil.checkEntitlement("system.admin.VIEW");
   B2Context b2Context = new B2Context(request);
 
   StringCache xmlCache = StringCacheFile.getInstance(

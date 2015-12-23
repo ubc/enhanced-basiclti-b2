@@ -36,7 +36,7 @@
                 org.oscelot.blackboard.utils.StringCacheFile"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:genericPage title="${bundle['page.system.tools.title']}" onLoad="doOnLoad()">
+<bbNG:genericPage title="${bundle['page.system.tools.title']}" onLoad="doOnLoad()" entitlement="system.admin.VIEW">
 <%
   B2Context b2Context = new B2Context(request);
   String subTitle = "";
