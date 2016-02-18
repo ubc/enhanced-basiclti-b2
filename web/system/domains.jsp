@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,28 +17,25 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.1.0 18-Jun-12  Added to release
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.ToolList"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.ToolList"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.domains.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.domains";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   ToolList domainList = new ToolList(b2Context, true, true);
+  String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
   String handle = "admin_main";
-  if (request.getParameter("config") != null) {
+  if (sourcePage.length() > 0) {
     handle = "admin_plugin_manage";
   }
   String cancelUrl = b2Context.getNavigationItem(handle).getHref();
@@ -57,17 +54,20 @@
   String reorderingUrl = "reorderdomains";
 %>
   <bbNG:jsBlock>
-  <script type="text/javascript">
-  function doAction(value) {
-    document.frmDomains.action.value = value;
-    document.frmDomains.submit();
+<script language="javascript" type="text/javascript">
+//<![CDATA[
+function doAction(value) {
+  document.frmDomains.action.value = value;
+  document.frmDomains.submit();
+}
+
+function doDelete() {
+  if (confirm('${bundle['page.system.tools.action.confirm']}')) {
+    doAction('delete');
   }
-  function doDelete() {
-    if (confirm('${bundle['page.system.tools.action.confirm']}')) {
-      doAction('delete');
-    }
-  }
-  </script>
+}
+//]]>
+</script>
   </bbNG:jsBlock>
   <bbNG:pageHeader instructions="${bundle['page.system.domains.instructions']}">
     <bbNG:breadcrumbBar environment="SYS_ADMIN" navItem="admin_plugin_manage">
@@ -78,13 +78,14 @@
     <bbNG:actionControlBar>
       <bbNG:actionButton title="${bundle['page.system.domains.button.add']}" url="domain.jsp?${query}" primary="true" />
       <bbNG:actionButton title="${bundle['page.system.domains.button.tools']}" url="tools.jsp?${query}" primary="false" />
+      <bbNG:actionButton title="${bundle['page.system.tools.button.services']}" url="services.jsp?${query}" primary="false" />
     </bbNG:actionControlBar>
   </bbNG:pageHeader>
-  <bbNG:form name="frmDomains" method="post" action="toolsaction?${query}">
+  <bbNG:form name="frmDomains" method="post" action="toolsaction?${query}" isSecure="true" nonceId="<%=formName%>">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
     <input type="hidden" name="<%=Constants.DOMAIN_PARAMETER_PREFIX%>" value="true" />
-    <bbNG:inventoryList collection="<%=domainList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.basiclti.Tool"
-       description="${bundle['page.system.tools.description']}" reorderable="true" reorderType="${bundle['page.system.domains.reordertype']}"
+    <bbNG:inventoryList collection="<%=domainList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.lti.Tool"
+       description="${bundle['page.system.domains.description']}" reorderable="true" reorderType="${bundle['page.system.domains.reordertype']}"
        reorderingUrl="<%=reorderingUrl%>"
        itemIdAccessor="getId" itemNameAccessor="getName" showAll="false" emptyMsg="${bundle['page.system.domains.empty']}">
       <bbNG:listActionBar>

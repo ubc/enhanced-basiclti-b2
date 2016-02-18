@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,26 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added OpenIn and WindowName settings
-                       Corrected names of LTI roles
-      1.1.3  1-Jan-11  Added User ID type option
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12  Remove resource file option
-                       Added default mappings for institution roles
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -47,15 +27,19 @@
                 blackboard.data.role.PortalRole,
                 blackboard.platform.security.CourseRole,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.data.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.data";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
+  Utils.initNode(session, b2Context, b2Context.getIsRootNode());
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, Constants.DEFAULT_TOOL_ID);
   boolean isDomain = b2Context.getRequestParameter(Constants.ACTION, "").equals(Constants.DOMAIN_PARAMETER_PREFIX);
   String cancelUrl = null;
@@ -70,19 +54,22 @@
   String query = Utils.getQuery(request);
   cancelUrl += "?" + query;
   String toolSettingPrefix = prefix + "." + toolId + ".";
-  boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   List<CourseRole> roles = Utils.getCourseRoles(systemRolesOnly);
-  boolean systemIRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean systemIRolesOnly = !b2Context.getSetting(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   List<PortalRole> iRoles = null;
   if (toolId.equals(Constants.DEFAULT_TOOL_ID)) {
     iRoles = Utils.getInstitutionRoles(systemIRolesOnly);
   }
 
   if (request.getMethod().equalsIgnoreCase("POST")) {
+    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId,
+       b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_ID, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_ID, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXTIDTYPE, b2Context.getRequestParameter(Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_SOURCEDID, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_TITLE, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_TITLE, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_COPY_OF, b2Context.getRequestParameter(Constants.TOOL_EXT_COPY_OF, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_USERID, b2Context.getRequestParameter(Constants.TOOL_USERID, Constants.DATA_NOTUSED));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_USERIDTYPE, b2Context.getRequestParameter(Constants.TOOL_USERIDTYPE, Constants.DATA_PRIMARYKEY));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_USER_SOURCEDID, b2Context.getRequestParameter(Constants.TOOL_USER_SOURCEDID, Constants.DATA_FALSE));
@@ -90,11 +77,15 @@
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EMAIL, b2Context.getRequestParameter(Constants.TOOL_EMAIL, Constants.DATA_NOTUSED));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLES, b2Context.getRequestParameter(Constants.TOOL_ROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_IROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_CROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_OBSERVER_ROLES, b2Context.getRequestParameter(Constants.TOOL_OBSERVER_ROLES, Constants.DATA_FALSE));
     for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
       CourseRole role = iter.next();
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(), b2Context.getRequestParameterValues(Constants.TOOL_ROLE + role.getIdentifier(), ""));
     }
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ADMINISTRATOR, b2Context.getRequestParameter(Constants.TOOL_ADMINISTRATOR, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_GUEST, b2Context.getRequestParameter(Constants.TOOL_GUEST, Constants.DATA_FALSE));
     if (toolId.equals(Constants.DEFAULT_TOOL_ID)) {
       for (Iterator<PortalRole> iter = iRoles.iterator(); iter.hasNext();) {
         PortalRole iRole = iter.next();
@@ -109,7 +100,7 @@
     cancelUrl = b2Context.setReceiptOptions(cancelUrl,
        b2Context.getResourceString("page.receipt.success"), null);
     response.sendRedirect(cancelUrl);
-
+    return;
   }
 
   Map<String,String> params = new HashMap<String,String>();
@@ -132,11 +123,15 @@
   params.put("contextidtype" + Constants.DATA_PRIMARYKEY, "false");
   params.put("contextidtype" + Constants.DATA_BATCHUID, "false");
   params.put("contextidtype" + Constants.DATA_COURSEID, "false");
+  if (B2Context.getIsVersion(9, 1, 14)) {
+    params.put("contextidtype" + Constants.DATA_UUID, "false");
+  }
   params.put("contextidtype" + b2Context.getSetting(toolSettingPrefix + Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID), "true");
   params.put(Constants.TOOL_CONTEXT_SOURCEDID, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_FALSE));
   params.put(Constants.TOOL_CONTEXT_TITLE, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_TITLE, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_EXT_COPY_OF, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_COPY_OF, Constants.DATA_FALSE));
   params.put(Constants.TOOL_USER_SOURCEDID, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_USER_SOURCEDID, Constants.DATA_FALSE));
-  if (b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+  if (b2Context.getSetting(Constants.TOOL_AVATAR, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
     pageContext.setAttribute("disableAvatar", "false");
     params.put(Constants.TOOL_AVATAR, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_AVATAR, Constants.DATA_FALSE));
   } else {
@@ -144,11 +139,15 @@
     params.put(Constants.TOOL_AVATAR, Constants.DATA_FALSE);
   }
   params.put(Constants.TOOL_ROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_EXT_IROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_EXT_CROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_OBSERVER_ROLES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_OBSERVER_ROLES, Constants.DATA_FALSE));
   for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
     CourseRole role = iter.next();
     params.put(Constants.TOOL_ROLE + role.getIdentifier(), b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier()));
   }
   params.put(Constants.TOOL_ADMINISTRATOR, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ADMINISTRATOR, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_GUEST, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_GUEST, Constants.DATA_FALSE));
   if (toolId.equals(Constants.DEFAULT_TOOL_ID)) {
     for (Iterator<PortalRole> iter = iRoles.iterator(); iter.hasNext();) {
       PortalRole iRole = iter.next();
@@ -165,6 +164,9 @@
   params.put("useridtype" + Constants.DATA_BATCHUID, "false");
   params.put("useridtype" + Constants.DATA_USERNAME, "false");
   params.put("useridtype" + Constants.DATA_STUDENTID, "false");
+  if (B2Context.getIsVersion(9, 1, 14)) {
+    params.put("useridtype" + Constants.DATA_UUID, "false");
+  }
   params.put("useridtype" + b2Context.getSetting(toolSettingPrefix + Constants.TOOL_USERIDTYPE, Constants.DATA_PRIMARYKEY), "true");
 
   params.put("username" + Constants.DATA_NOTUSED, "false");
@@ -188,7 +190,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${title}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="data.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="data.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <input type="hidden" name="<%=Constants.TOOL_ID%>" value="<%=params.get(Constants.TOOL_ID)%>" />
   <input type="hidden" name="<%=Constants.ACTION%>" value="<%=prefix%>" />
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
@@ -201,6 +203,13 @@
           <bbNG:selectOptionElement isSelected="${params.contextidtypeP}" value="<%=Constants.DATA_PRIMARYKEY%>" optionLabel="${bundle['page.system.data.step2.contextidtype.primarykey']}" />
           <bbNG:selectOptionElement isSelected="${params.contextidtypeB}" value="<%=Constants.DATA_BATCHUID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.batchuid']}" />
           <bbNG:selectOptionElement isSelected="${params.contextidtypeC}" value="<%=Constants.DATA_COURSEID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.courseid']}" />
+<%
+  if (B2Context.getIsVersion(9, 1, 14)) {
+%>
+          <bbNG:selectOptionElement isSelected="${params.contextidtypeU}" value="<%=Constants.DATA_UUID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.uuid']}" />
+<%
+  }
+%>
         </bbNG:selectElement>
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step1.contextsourcedid.label']}">
@@ -208,6 +217,9 @@
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step1.contexttitle.label']}">
         <bbNG:checkboxElement isSelected="${params.contexttitle}" name="<%=Constants.TOOL_CONTEXT_TITLE%>" value="true" helpText="${bundle['page.system.data.step1.contexttitle.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step1.ext_copyof.label']}">
+        <bbNG:checkboxElement isSelected="${params.ext_copyof}" name="<%=Constants.TOOL_EXT_COPY_OF%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.data.step1.ext_copyof.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step2.title']}" instructions="${bundle['page.system.data.step2.instructions']}">
@@ -224,6 +236,13 @@
           <bbNG:selectOptionElement isSelected="${params.useridtypeB}" value="<%=Constants.DATA_BATCHUID%>" optionLabel="${bundle['page.system.data.step2.useridtype.batchuid']}" />
           <bbNG:selectOptionElement isSelected="${params.useridtypeN}" value="<%=Constants.DATA_USERNAME%>" optionLabel="${bundle['page.system.data.step2.useridtype.username']}" />
           <bbNG:selectOptionElement isSelected="${params.useridtypeS}" value="<%=Constants.DATA_STUDENTID%>" optionLabel="${bundle['page.system.data.step2.useridtype.studentid']}" />
+<%
+  if (B2Context.getIsVersion(9, 1, 14)) {
+%>
+          <bbNG:selectOptionElement isSelected="${params.useridtypeU}" value="<%=Constants.DATA_UUID%>" optionLabel="${bundle['page.system.data.step2.useridtype.uuid']}" />
+<%
+  }
+%>
         </bbNG:selectElement>
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.usersourcedid.label']}">
@@ -248,6 +267,17 @@
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.roles.label']}">
         <bbNG:checkboxElement isSelected="${params.roles}" name="<%=Constants.TOOL_ROLES%>" value="true" helpText="${bundle['page.system.data.step2.roles.instructions']}" />
+        <bbNG:dataElement isSubElement="true" subElementType="INDENTED_NESTED_LIST">
+          <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.ext_iroles.label']}">
+            <bbNG:checkboxElement isSelected="${params.ext_iroles}" name="<%=Constants.TOOL_EXT_IROLES%>" value="true" helpText="${bundle['page.system.data.step2.ext_iroles.instructions']}" />
+          </bbNG:dataElement>
+          <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.ext_croles.label']}">
+            <bbNG:checkboxElement isSelected="${params.ext_croles}" name="<%=Constants.TOOL_EXT_CROLES%>" value="true" helpText="${bundle['page.system.data.step2.ext_croles.instructions']}" />
+          </bbNG:dataElement>
+          <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.oroles.label']}">
+            <bbNG:checkboxElement isSelected="${params.oroles}" name="<%=Constants.TOOL_OBSERVER_ROLES%>" value="true" helpText="${bundle['page.system.data.step2.oroles.instructions']}" />
+          </bbNG:dataElement>
+        </bbNG:dataElement>
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step3.title']}" instructions="${bundle['page.system.data.step3.instructions']}">
@@ -286,6 +316,9 @@
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step3.administrator.label']}">
         <bbNG:checkboxElement isSelected="${params.administrator}" name="<%=Constants.TOOL_ADMINISTRATOR%>" value="true" helpText="${bundle['page.system.data.step3.administrator.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step3.guest.label']}">
+        <bbNG:checkboxElement isSelected="${params.guest}" name="<%=Constants.TOOL_GUEST%>" value="true" helpText="${bundle['page.system.data.step3.guest.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
 <%

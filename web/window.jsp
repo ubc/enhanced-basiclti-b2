@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,25 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-                       Updated for alternative schema name in Learn 9.1
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Split connection to tool code according to where it is to be opened
-      1.1.3  1-Jan-11
-      1.2.0 17-Sep-11
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -44,15 +25,20 @@
                 blackboard.persist.BbPersistenceManager,
                 blackboard.persist.Id,
                 blackboard.platform.persistence.PersistenceServiceFactory,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.Utils"
         errorPage="error.jsp"%>
+<%@taglib uri="/bbNG" prefix="bbNG"%>
 <%@include file="lti_props.jsp" %>
+<bbNG:includedPage entitlement="system.generic.VIEW">
 <%
   String url = "";
   String courseId = b2Context.getRequestParameter("course_id", "");
   String contentId = b2Context.getRequestParameter("content_id", "");
   String tabId = b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, "");
+  String cTabId = b2Context.getRequestParameter(Constants.COURSE_TAB_PARAMETER_NAME, "");
   String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
+  String mode = b2Context.getRequestParameter("mode", "");
+  String toolName = tool.getName();
   boolean isIframe = b2Context.getRequestParameter("if", "").length() > 0;
   if (!isIframe) {
     if (contentId.length() > 0) {
@@ -60,28 +46,37 @@
       ContentDbLoader courseDocumentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
       Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
       Content content = courseDocumentLoader.loadById(id);
-      if (!content.getIsFolder()) {
+        toolName = content.getTitle();
+      if (!content.getIsFolder() || content.getIsLesson()) {
         id = content.getParentId();
         contentId = id.toExternalString();
       }
-      boolean isBb90 = !B2Context.getIsVersion(9, 1, 0);
       String navItem = "cp_content_quickdisplay";
-      if (!isBb90 && B2Context.getEditMode()) {
+      if (B2Context.getEditMode()) {
         navItem = "cp_content_quickedit";
       }
       url = b2Context.getNavigationItem(navItem).getHref();
       url = url.replace("@X@course.pk_string@X@", courseId);
       url = url.replace("@X@content.pk_string@X@", contentId);
     } else if (tabId.length() > 0) {
-      url = "/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=" + tabId;
+      url = "/webapps/portal/execute/tabs/tabAction?" + Constants.TAB_PARAMETER_NAME + "=" + tabId;
+    } else if ((moduleId != null) && (moduleId.length() > 0)) {
+      url = "/webapps/blackboard/execute/modulepage/view?course_id=" + courseId + "&" +
+         Constants.COURSE_TAB_PARAMETER_NAME + "=" + cTabId;
+    } else if (sourcePage.equals(Constants.TOOL_USERTOOL)) {
+      url = b2Context.getRequestParameter("returnUrl", "");
+    } else if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE)) {
+      url = b2Context.getPath() + "course/" + "tools.jsp?" + Utils.getQuery(request);
+    } else if (sourcePage.equals(Constants.TOOLS_PAGE)) {
+      url = b2Context.getPath() + "tools.jsp?" + Utils.getQuery(request);
+    } else if (mode.length() > 0) {
+      url = b2Context.getNavigationItem("course_top").getHref();
+      url = url.replace("@X@course.pk_string@X@", courseId);
     } else {
-      url = b2Context.getPath();
-      if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE)) {
-        url += "course/";
-      }
-      url += "tools.jsp?" + Utils.getQuery(request);
+      url = b2Context.getNavigationItem("course_tools_area").getHref();
+      url = url.replace("@X@course.pk_string@X@", courseId);
     }
-    url = b2Context.setReceiptOptions(url, b2Context.getResourceString("page.new.window"), null);
+    url = b2Context.setReceiptOptions(url, String.format(b2Context.getResourceString("page.new.window"), toolName), null);
     pageContext.setAttribute("url", url);
   }
 %>
@@ -91,19 +86,29 @@
   if (params != null) {
 %>
 <script language="javascript" type="text/javascript">
-function doOnLoad() {
+function osc_doOnLoad() {
 <%
     if (!isIframe) {
 %>
   if (window.opener) {
+<%
+      if (!B2Context.getIsVersion(9, 1, 201404)) {
+%>
     window.opener.location.href = '${url}';
+<%
+      } else {
+%>
+    window.opener.parent.location.href = '${url}';
+<%
+      }
+%>
   }
 <%
     }
 %>
   document.forms[0].submit();
 }
-window.onload=doOnLoad;
+window.onload=osc_doOnLoad;
 </script>
 <%
   }
@@ -134,3 +139,4 @@ window.onload=doOnLoad;
 %>
 </body>
 </html>
+</bbNG:includedPage>

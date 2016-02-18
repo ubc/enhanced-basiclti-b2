@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,31 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added options for return messages and log requests
-      1.1.3  1-Jan-11  Changed to use standard image files
-      1.2.0 17-Sep-11
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-                       Added return to control panel tools page (including paging option)
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12  Changed disabled and noaccess messages to display as receipts rather than separate pages
-      2.3.0  5-Nov-12  Added fix for changes to how frames are opened in SP10
-                       Added "no breadcrumb" option
-                       Added support for launching from a module outside a course
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13  Allow access to tools defined by URL even when define tools by instructor option is not enabled
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.net.URLEncoder,
+                blackboard.data.user.User,
                 blackboard.portal.data.Module,
                 blackboard.portal.persist.ModuleDbLoader,
                 blackboard.persist.Id,
@@ -52,23 +32,41 @@
                 blackboard.persist.KeyNotFoundException,
                 blackboard.persist.PersistenceException,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.Tool"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.Tool"
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.course_tool.splash.pagetitle']}">
 <%
+  String formName = "page.course_tool.splash";
+  Utils.checkForm(request, formName);
+
   String moduleId = Utils.checkForModule(request);
   B2Context b2Context = new B2Context(request);
+  boolean nodeSupport = b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  if (nodeSupport) {
+    b2Context.setInheritSettings(b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
+  } else {
+    b2Context.clearNode();
+  }
   Utils.checkCourse(b2Context);
   String courseId = b2Context.getRequestParameter("course_id", "");
+  if (courseId.equals("@X@course.pk_string@X@")) {
+    courseId = "";
+  }
   String contentId = b2Context.getRequestParameter("content_id", "");
+  if (contentId.equals("@X@content.pk_string@X@")) {
+    contentId = "";
+  }
+  String groupId = b2Context.getRequestParameter("group_id", "");
+  if (groupId.equals("@X@group.pk_string@X@")) {
+    groupId = "";
+  }
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID,
      b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, ""));
   String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
-  Tool tool = new Tool(b2Context, toolId);
-  boolean allowLocal = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  Tool tool = Utils.getTool(b2Context, toolId);
+  boolean allowLocal = b2Context.getSetting(Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   String actionUrl = "";
   if (courseId.length() > 0) {
     actionUrl = "course_id=" + courseId + "&";
@@ -76,28 +74,67 @@
   if (contentId.length() > 0) {
     actionUrl += "content_id=" + contentId + "&";
   }
-  String idParam = Constants.TOOL_ID + "=" + toolId + "&";
-  if (moduleId != null) {
-    idParam = Constants.TOOL_MODULE + "=" + moduleId + "&" +
-       Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, "") + "&n=" +
-       b2Context.getRequestParameter("n", "");
+  if (groupId.length() > 0) {
+    actionUrl += "group_id=" + groupId + "&";
   }
-  if (!tool.getIsEnabled().equals(Constants.DATA_TRUE) || (!tool.getIsSystemTool() && !tool.getByUrl() && !allowLocal)) {
+  String idParam = Constants.TOOL_ID + "=" + toolId;
+  if (moduleId != null) {
+    if (courseId.length() <= 0) {
+      idParam = Constants.TOOL_MODULE + "=" + moduleId + "&" +
+         Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, "");
+      if (b2Context.getRequestParameter("n", "").length() > 0) {
+        idParam += "&n=" + b2Context.getRequestParameter("n", "");
+      }
+    } else {
+      idParam = Constants.TOOL_MODULE + "=" + moduleId + "&" +
+         Constants.COURSE_TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.COURSE_TAB_PARAMETER_NAME, ""); // + "&n=" +
+    }
+  } else if (courseId.length() <= 0) {
+    String url = b2Context.getRequestParameter("returnUrl", "");
+    int pos = url.indexOf("?");
+    if (pos >= 0) {
+      url = url.substring(pos + 1);
+      String[] params = url.split("&");
+      String[] param;
+      for (int i = 0; i < params.length; i++) {
+        param = params[i].split("=");
+        if ((param.length >= 2) && (param[0].equals(Constants.TAB_PARAMETER_NAME))) {
+          idParam += "&" + Constants.TAB_PARAMETER_NAME + "=" + param[1];
+          break;
+        }
+      }
+    }
+  }
+  boolean sendAdminRole = tool.getSendAdministrator().equals(Constants.DATA_TRUE);
+  if ((tool.getName().length() <= 0) && (tool.getLaunchUrl().length() <= 0)) {
+    response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
+       Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.config.error"));
+    return;
+  } else if (!tool.getIsEnabled().equals(Constants.DATA_TRUE) || (tool.getLaunchUrl().length() <= 0) ||
+      (tool.getLaunchGUID().length() <= 0) || (tool.getLaunchSecret().length() <= 0) ||
+      (!tool.getIsSystemTool() && !tool.getByUrl() && !allowLocal)) {
     response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
        Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.disabled.error"));
-  } else if (tool.getDoSendRoles() && (courseId.length() > 0) && (b2Context.getContext().getCourseMembership() == null)) {
+    return;
+  } else if (tool.getDoSendRoles() && !tool.getSendGuest().equals(Constants.DATA_TRUE) && (courseId.length() > 0) && (b2Context.getContext().getCourseMembership() == null) &&
+     (!sendAdminRole || !b2Context.getContext().getUser().getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN))) {
     response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
        Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.noaccess.error"));
+    return;
   } else {
-    if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE) || sourcePage.equals(Constants.TOOLS_PAGE)) {
+    if (sourcePage.length() > 0) {
       actionUrl = Utils.getQuery(request) + "&";
+    }
+    if (b2Context.getRequestParameter("mode", "").length() > 0) {
+      actionUrl += "mode=" + b2Context.getRequestParameter("mode", "") + "&";
     }
     boolean redirect = (b2Context.getRequestParameter(Constants.ACTION, "").length() > 0);
     if (!redirect && (tool.getSplash().equals(Constants.DATA_TRUE) || tool.getUserHasChoice()) && (moduleId != null)) {
       response.sendRedirect("return.jsp?" + actionUrl + idParam + "&error=true&" +
          Constants.LTI_ERROR_MESSAGE + "=" + b2Context.getResourceString("page.course_tool.splash.error"));
+      return;
     } else if (!redirect && (tool.getSplash().equals(Constants.DATA_TRUE) || tool.getUserHasChoice())) {
-      actionUrl = "tool.jsp?" + actionUrl + idParam + Constants.ACTION + "=redirect";
+      actionUrl = "tool.jsp?" + actionUrl + idParam + "&" + Constants.ACTION + "=redirect";
       pageContext.setAttribute("bundle", b2Context.getResourceStrings());
       pageContext.setAttribute("imageFiles", Constants.IMAGE_FILE);
       pageContext.setAttribute("imageAlt", Constants.IMAGE_ALT_RESOURCE);
@@ -111,6 +148,7 @@
         b2Context.setReceipt(ltiError, false);
       }
 %>
+<bbNG:learningSystemPage title="${bundle['page.course_tool.splash.pagetitle']}" entitlement="system.generic.VIEW">
   <bbNG:pageHeader instructions="${bundle['page.settings.instructions']}">
 <%
       if (!b2Context.getContext().hasContentContext()) {
@@ -125,12 +163,12 @@
 %>
     <bbNG:breadcrumbBar />
 <%
-        pageContext.setAttribute("iconUrl", "icon.jsp?course_id=" + courseId + "&amp;content_id=" + contentId);
+        pageContext.setAttribute("iconUrl", "icon.jsp?course_id=" + courseId + "&amp;content_id=" + contentId + "&amp;group_id=" + groupId);
       }
 %>
     <bbNG:pageTitleBar iconUrl="${iconUrl}" showTitleBar="true" title="${bundle['page.course_tool.splash.title']} ${tool.name}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="${actionUrl}" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="${actionUrl}" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
 <%
       if (tool.getSplash().equals("true") && (tool.getSplashText().length() > 0)) {
@@ -200,6 +238,7 @@
     <bbNG:stepSubmit hideNumber="false" showCancelButton="true" />
   </bbNG:dataCollection>
   </bbNG:form>
+</bbNG:learningSystemPage>
 <%
     } else {
       String settingPrefix = Constants.TOOL_PARAMETER_PREFIX + ".";
@@ -207,15 +246,15 @@
         settingPrefix += toolId + ".";
       }
       boolean persist = false;
-      if (tool.getUserId().equals(Constants.DATA_OPTIONAL) && (bbContext.hasContentContext() || tool.getSendUserId().equals(Constants.DATA_OPTIONAL))) {
+      if (tool.getUserId().equals(Constants.DATA_OPTIONAL) && (b2Context.getContext().hasContentContext() || tool.getSendUserId().equals(Constants.DATA_OPTIONAL))) {
         b2Context.setSetting(false, false, settingPrefix + Constants.TOOL_USERID, b2Context.getRequestParameter(Constants.TOOL_USERID, "false"));
         persist = true;
       }
-      if (tool.getUsername().equals(Constants.DATA_OPTIONAL) && (bbContext.hasContentContext() || tool.getSendUsername().equals(Constants.DATA_OPTIONAL))) {
+      if (tool.getUsername().equals(Constants.DATA_OPTIONAL) && (b2Context.getContext().hasContentContext() || tool.getSendUsername().equals(Constants.DATA_OPTIONAL))) {
         b2Context.setSetting(false, false, settingPrefix + Constants.TOOL_USERNAME, b2Context.getRequestParameter(Constants.TOOL_USERNAME, "false"));
         persist = true;
       }
-      if (tool.getEmail().equals(Constants.DATA_OPTIONAL) && (bbContext.hasContentContext() || tool.getSendEmail().equals(Constants.DATA_OPTIONAL))) {
+      if (tool.getEmail().equals(Constants.DATA_OPTIONAL) && (b2Context.getContext().hasContentContext() || tool.getSendEmail().equals(Constants.DATA_OPTIONAL))) {
         b2Context.setSetting(false, false, settingPrefix + Constants.TOOL_EMAIL, b2Context.getRequestParameter(Constants.TOOL_EMAIL, "false"));
         persist = true;
       }
@@ -224,21 +263,37 @@
       }
       String url = null;
       boolean useWrapper = false;
-      if (tool.getOpenIn().equals(Constants.DATA_IFRAME) && (moduleId == null)) {
-        url = "iframe";
-      } else if (tool.getOpenIn().equals(Constants.DATA_WINDOW)) {
-        url = "new";
-        if (!B2Context.getIsVersion(9, 1, 10)) {
-          useWrapper = true;
+      if (b2Context.getRequestParameter("embed", Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) { // ||
+        url = "frame";
+      } else if (tool.getOpenIn().equals(Constants.DATA_WINDOW) ||
+                 (!b2Context.getRequestParameter("ajax", Constants.DATA_FALSE).equals(Constants.DATA_TRUE) &&
+                  (tool.getOpenIn().equals(Constants.DATA_POPUP) || tool.getOpenIn().equals(Constants.DATA_OVERLAY)))) {
+        if (moduleId != null) {
+          url = "window";
+        } else {
+          url = "new";
+          if (!B2Context.getIsVersion(9, 1, 10)) {
+            useWrapper = true;
+          }
         }
+      } else if (tool.getOpenIn().equals(Constants.DATA_IFRAME) && (moduleId == null) &&
+          !sourcePage.equals(Constants.TOOL_USERTOOL) && (courseId.length() > 0)) {
+        url = "iframe";
       } else {
         url = "frame";
         useWrapper = tool.getOpenIn().equals(Constants.DATA_FRAME);
-        if (B2Context.getIsVersion(9, 1, 10) && !redirect) {
-          if (!useWrapper && (moduleId == null)) {
-            idParam += "&full=" + Constants.DATA_TRUE;
+        if (!tool.getOpenIn().equals(Constants.DATA_POPUP) && !tool.getOpenIn().equals(Constants.DATA_OVERLAY) &&
+           B2Context.getIsVersion(9, 1, 201404)) {
+          if (tool.getOpenIn().equals(Constants.DATA_FRAME_NO_BREADCRUMBS)) { // || (courseId.length() <= 0)) {
+            url = "frame2";
+          } else if (!redirect) {
+            if (courseId.length() <= 0) {
+              url = "iframe2";
+              useWrapper = false;
+            } else {
+              useWrapper = true;
+            }
           }
-          useWrapper = false;
         }
       }
       url += ".jsp?" + actionUrl + idParam;
@@ -255,18 +310,22 @@
             content.persist();
           }
           title = content.getTitle();
-        } else if (courseId.length() <= 0) {
-          useWrapper = false;
         }
       }
       if (useWrapper) {
         url = b2Context.getPath() + URLEncoder.encode(url, "UTF-8");
-        url = "/webapps/blackboard/content/contentWrapper.jsp?content_id=" + contentId +
-              "&displayName=" + URLEncoder.encode(title, "UTF-8") + "&course_id=" + courseId +
-              "&navItem=content&href=" + url;
+        if (courseId.length() > 0) {
+          url = "/webapps/blackboard/content/contentWrapper.jsp?content_id=" + contentId +
+                "&displayName=" + URLEncoder.encode(title, "UTF-8") + "&course_id=" + courseId +
+                "&navItem=content&href=" + url;
+        } else {
+          url = "/webapps/blackboard/content/contentWrapper.jsp?" +
+                "displayName=" + URLEncoder.encode(title, "UTF-8") + "&globalNavigation=true" +
+                "&href=" + url;
+        }
       }
       response.sendRedirect(url);
+      return;
     }
   }
 %>
-</bbNG:learningSystemPage>

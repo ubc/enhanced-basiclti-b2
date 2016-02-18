@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,70 +17,146 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-                       Updated for alternative schema name in Learn 9.1
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Split connection to tool code according to where it is to be opened
-      1.1.3  1-Jan-11
-      1.2.0 17-Sep-11
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
-        import="com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Tool"
+        import="blackboard.data.content.Content,
+                blackboard.persist.content.ContentDbLoader,
+                blackboard.persist.BbPersistenceManager,
+                blackboard.platform.persistence.PersistenceServiceFactory,
+                blackboard.persist.Id,
+                com.spvsoftwareproducts.blackboard.utils.B2Context,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Tool"
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage  title="${bundle['page.course.tool.title']}" onLoad="doAddFrame()">
-  <bbNG:pageHeader>
 <%
   B2Context b2Context = new B2Context(request);
-  pageContext.setAttribute("bundle", b2Context.getResourceStrings());
+  String contentId = b2Context.getRequestParameter("content_id", "");
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, b2Context.getSetting(false, true, "tool.id", ""));
-  Tool tool = new Tool(b2Context, toolId);
+  Tool tool = Utils.getTool(b2Context, toolId);
+  String toolName = tool.getName();
+  if (contentId.length() > 0) {
+    BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
+    ContentDbLoader courseDocumentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
+    Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
+    Content content = courseDocumentLoader.loadById(id);
+    toolName = content.getTitle();
+  }
+
+  String width = tool.getWindowWidth();
+  String height = tool.getWindowHeight();
+  boolean dimensions = (width.length() > 0) || (height.length() > 0);
+  if (width.length() <= 0) {
+    width = "100%";
+  }
+  if (height.length() <= 0) {
+    height = "' + osc_getHeight(el) + '";
+  }
+
+  pageContext.setAttribute("bundle", b2Context.getResourceStrings());
   pageContext.setAttribute("tool", tool);
+  pageContext.setAttribute("toolName", toolName);
+  pageContext.setAttribute("width", width);
+  pageContext.setAttribute("height", height);
   pageContext.setAttribute("query", request.getQueryString() + "&if=true");
+%>
+<bbNG:learningSystemPage title="${bundle['page.course.tool.title']}" onLoad="osc_doOnLoad()" entitlement="system.generic.VIEW">
+  <bbNG:pageHeader>
+<%
   if (b2Context.getContext().hasContentContext()) {
 %>
     <bbNG:breadcrumbBar />
 <%
-  } else {
+  } else if (b2Context.getRequestParameter("mode", "").length() > 0) {
+%>
+    <bbNG:breadcrumbBar environment="COURSE">
+      <bbNG:breadcrumb title="${toolName}" />
+    </bbNG:breadcrumbBar>
+<%
+  } else if (b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "").equals(Constants.TOOLS_PAGE)) {
     pageContext.setAttribute("courseId", b2Context.getRequestParameter("course_id", ""));
 %>
     <bbNG:breadcrumbBar environment="COURSE">
       <bbNG:breadcrumb href="tools.jsp?course_id=${courseId}" title="${bundle['plugin.name']}" />
-      <bbNG:breadcrumb title="${tool.name}" />
+      <bbNG:breadcrumb title="${toolName}" />
+    </bbNG:breadcrumbBar>
+<%
+  } else {
+%>
+    <bbNG:breadcrumbBar environment="COURSE" navItem="course_tools_area">
+      <bbNG:breadcrumb title="${toolName}" />
     </bbNG:breadcrumbBar>
 <%
   }
 %>
-    <bbNG:pageTitleBar showTitleBar="false" title="${bundle['page.course.tool.title']}" />
+    <bbNG:pageTitleBar showTitleBar="true" title="${toolName}" />
   </bbNG:pageHeader>
-<bbNG:jsBlock>
+  <bbNG:cssBlock>
+<style type="text/css">
+div#containerdiv, div#frame {
+  padding: 0;
+  margin: 0;
+}
+</style>
+  </bbNG:cssBlock>
+  <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
-function doAddFrame() {
+//<![CDATA[
+<%
+  if (!dimensions) {
+%>
+var resizeTimeoutId;
+
+function osc_doResize() {
+  var el = document.getElementById("osc_if");
+  if (el) {
+    var height = osc_getHeight(el);
+    if (height != el.height) {
+      el.height = height;
+    }
+  }
+}
+
+function osc_doOnResize() {
+  window.clearTimeout(resizeTimeoutId);
+  resizeTimeoutId = window.setTimeout(osc_doResize, 10);
+}
+<%
+  }
+  if (tool.getWindowHeight().length() <= 0) {
+%>
+
+function osc_getHeight(el) {
   var height = window.innerHeight;  // Firefox
   if (document.body.clientHeight)	{
     height = document.body.clientHeight;  // IE
   }
-  var el = document.getElementById("frame");
-  height = parseInt(height - el.offsetTop - 100) + "px";
-  el.innerHTML = '<iframe id="if" src="window.jsp?${query}" width="100%" height="' + height + '" frameborder="0"/>';
+  height = height - el.offsetTop - 150;
+  return parseInt(height) + "px";
 }
+<%
+  }
+%>
+
+function osc_doOnLoad() {
+  var el = document.getElementById("osc_frame");
+  el.innerHTML = '<iframe id="osc_if" src="window.jsp?${query}" width="${width}" height="${height}" frameborder="0" />';
+<%
+  if (!dimensions) {
+%>
+  if (document.body.onresize) {
+    document.body.onresize=osc_doOnResize;
+  } else {
+    window.onresize=osc_doOnResize;
+  }
+<%
+  }
+%>
+}
+//]]>
 </script>
-</bbNG:jsBlock>
-<span id="frame"></span>
+  </bbNG:jsBlock>
+<div id="osc_frame"></div>
 </bbNG:learningSystemPage>

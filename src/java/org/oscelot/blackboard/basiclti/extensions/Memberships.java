@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,15 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.0.0 29-Jan-12
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12  Updated to limit list when content item assigned to groups
-      2.2.0  2-Sep-12  Added experimental option to send group membership details
-      2.3.0  5-Nov-12  Added support to send group set details
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
@@ -51,10 +42,9 @@ import blackboard.persist.PersistenceException;
 import blackboard.platform.user.MyPlacesUtil;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Utils;
-
-import org.oscelot.blackboard.basiclti.Constants;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Utils;
+import org.oscelot.blackboard.lti.Constants;
 
 
 public class Memberships implements Action {
@@ -82,7 +72,7 @@ public class Memberships implements Action {
         if (b2Context.getContext().hasContentContext()) {
           contentId = b2Context.getContext().getContent().getId();
         }
-        boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+        boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
         boolean includeAll = !tool.getLimitMemberships().equals(Constants.DATA_TRUE);
         boolean includeGroups = actionName.equals(Constants.EXT_MEMBERSHIP_GROUPS_READ) &&
            tool.getGroupMemberships().equals(Constants.DATA_TRUE);
@@ -97,7 +87,12 @@ public class Memberships implements Action {
           if (includeGroups) {
             groups = new HashMap<Id,Group>();
             GroupDbLoader groupLoader = GroupDbLoader.Default.getInstance();
-            List<Group> loadGroups = groupLoader.loadGroupsAndSetsByCourseId(b2Context.getContext().getCourseId());
+            List<Group> loadGroups;
+            if (B2Context.getIsVersion(9, 1, 8)) {
+              loadGroups = groupLoader.loadGroupsAndSetsByCourseId(b2Context.getContext().getCourseId());
+            } else {
+              loadGroups = groupLoader.loadByCourseId(b2Context.getContext().getCourseId());
+            }
             for (Group group : loadGroups) {
               String title = group.getTitle();
               if (group.isGroupSet() || (group.getIsAvailable() && ((groupPrefix.length() <= 0) || title.matches(groupPrefix)))) {
@@ -108,7 +103,7 @@ public class Memberships implements Action {
             List<GroupMembership> groupMemberships = groupMembershipLoader.loadByCourseId(b2Context.getContext().getCourseId());
             groupMembers = new HashMap<Id,List<Id>>();
             for (GroupMembership groupMembership : groupMemberships) {
-              List<Id> groupIds = null;
+              List<Id> groupIds;
               if (!groupMembers.containsKey(groupMembership.getCourseMembershipId())) {
                 groupIds = new ArrayList<Id>();
               } else {
@@ -139,8 +134,11 @@ public class Memberships implements Action {
               }
               if (isAvailable) {
                 role = Utils.getRole(courseMembership.getRole(), systemRolesOnly);
-                roles = Utils.getRoles(tool.getRole(role.getIdentifier()),
-                   tool.getSendAdministrator().equals(Constants.DATA_TRUE) && user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN));
+                roles = Utils.getCRoles(tool.getRole(role.getIdentifier())); //,
+                if (tool.getSendAdministrator().equals(Constants.DATA_TRUE)) {
+                  roles = Utils.addAdminRole(roles, user);
+                }
+                roles = Utils.addPreviewRole(roles, user);
                 isAvailable = ((roles.indexOf(Constants.ROLE_INSTRUCTOR) >= 0) || isVisible);
               }
             }
@@ -154,6 +152,8 @@ public class Memberships implements Action {
                 userId = user.getId().toExternalString();
               } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
                 userId = user.getStudentId();
+              } else if (userIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 14)) {
+                userId = user.getUuid();
               } else {
                 userId = user.getBatchUid();
               }
@@ -161,7 +161,7 @@ public class Memberships implements Action {
               try {
                 if (MyPlacesUtil.avatarsEnabled() && tool.getDoSendAvatar()) {
                   String image = null;
-                  if (MyPlacesUtil.displayAvatar(user.getId())) {
+                  if (Utils.displayAvatar(user.getId())) {
                     image = MyPlacesUtil.getAvatarImage(user.getId());
                   }
                   if (image != null) {

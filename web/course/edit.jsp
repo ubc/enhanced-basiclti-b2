@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,25 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added OpenIn and WindowName settings
-                       Corrected names of LTI roles
-      1.1.3  1-Jan-11  Added User ID type option
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11  Added custom parameters option
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 19-May-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
@@ -43,13 +24,16 @@
                 java.util.HashMap,
                 java.util.UUID,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.Tool"
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.Tool"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.course.edit.title']}">
+<bbNG:learningSystemPage title="${bundle['page.course.edit.title']}" entitlement="course.control_panel.VIEW">
 <%
+  String formName = "page.course.edit";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, "");
   String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
@@ -168,7 +152,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.course.edit.title']}: ${toolName}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="${formUrl}" name="toolForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="${formUrl}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.course.edit.step2.title']}" instructions="${bundle['page.course.edit.step2.instructions']}">
       <bbNG:dataElement isRequired="true" label="${bundle['page.course.edit.step1.userid.label']}">

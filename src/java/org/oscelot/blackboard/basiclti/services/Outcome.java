@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,15 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.0.0 29-Jan-12
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 */
 package org.oscelot.blackboard.basiclti.services;
 
@@ -52,11 +43,10 @@ import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Utils;
-import org.oscelot.blackboard.basiclti.Gradebook;
-import org.oscelot.blackboard.basiclti.Gradebook_v90;
-import org.oscelot.blackboard.basiclti.Constants;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Utils;
+import org.oscelot.blackboard.lti.Gradebook;
+import org.oscelot.blackboard.lti.Constants;
 
 
 public class Outcome implements Action {
@@ -67,15 +57,11 @@ public class Outcome implements Action {
   public boolean execute(String actionName, B2Context b2Context, Tool tool,
      Element xmlBody, List<String> serviceData, Response response) {
 
-    boolean ok = true;
-
-    boolean isV90 = !B2Context.getIsVersion(9, 1, 0);
-
     String resultSourcedId = Utils.getXmlChildValue(xmlBody, "sourcedId");
 
     String description = b2Context.getResourceString("ext.codeminor.success");
 
-    ok = tool.getSendUserId().equals(Constants.DATA_MANDATORY);
+    boolean ok = tool.getSendUserId().equals(Constants.DATA_MANDATORY);
     if (!ok) {
       description = b2Context.getResourceString("ext.codeminor.notavailable");
     }
@@ -91,7 +77,9 @@ public class Outcome implements Action {
           user = userdbloader.loadByUserName(userId);
         } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
           user = userdbloader.loadById(bbPm.generateId(User.DATA_TYPE, userId));
-        } else if (isV90 && userIdType.equals(Constants.DATA_STUDENTID)) {
+        } else if (userIdType.equals(Constants.DATA_UUID)) {
+          user = userdbloader.loadByUuid(userId);
+        } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
           SearchParameter sp = new SearchParameter(SearchKey.StudentId, userId, SearchOperator.Equals);
           UserSearch us = new UserSearch();
           us.addParameter(sp);
@@ -134,25 +122,15 @@ public class Outcome implements Action {
       }
     }
 // Perform requested action
-    String value = null;
+    String value;
     if (ok) {
       value = Utils.getXmlChildValue(xmlBody, "textString");
-      Lineitem lineitem = null;
-      if (isV90) {
-        lineitem = Gradebook_v90.getColumn(b2Context, tool.getId(),
-           Constants.DECIMAL_RESULT_TYPE, 100, false, false, value, true);
-      } else {
-        lineitem = Gradebook.getColumn(b2Context, tool.getId(), tool.getName(),
-           Constants.DECIMAL_RESULT_TYPE, 100, false, false, value, true);
-      }
+      Lineitem lineitem = Gradebook.getColumn(b2Context, tool.getId(), tool.getName(),
+         Constants.DECIMAL_RESULT_TYPE, 100, false, false, value, true);
       if (actionName.equals(Constants.SVC_OUTCOME_WRITE)) {
         ok = ((value != null) && (value.length() > 0));
         if (ok) {
-          if (isV90) {
-            ok = Gradebook_v90.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, value);
-          } else {
-            ok = Gradebook.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, value);
-          }
+          ok = Gradebook.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, value);
           if (ok) {
             description = String.format(b2Context.getResourceString("svc.codeminor.outcome.replaced"),
                resultSourcedId, value);
@@ -163,25 +141,15 @@ public class Outcome implements Action {
           description = b2Context.getResourceString("ext.codeminor.outcomevalue");
         }
       } else if (actionName.equals(Constants.SVC_OUTCOME_DELETE)) {
-        if (isV90) {
-          ok = Gradebook_v90.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, "");
-        } else {
-          ok = Gradebook.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, "");
-        }
+        ok = Gradebook.updateGradebook(user, lineitem, Constants.DECIMAL_RESULT_TYPE, "");
         if (ok) {
-          value = null;
           description = b2Context.getResourceString("svc.codeminor.outcome.deleted");
         } else {
           Logger.getLogger(Outcome.class.getName()).log(Level.SEVERE, "Error in Gradebook.updateGradebook");
           description = b2Context.getResourceString("ext.codeminor.system");
         }
       } else if (actionName.equals(Constants.SVC_OUTCOME_READ)) {
-        Score score = null;
-        if (isV90) {
-          score = Gradebook_v90.getScore(lineitem, user.getId(), false);
-        } else {
-          score = Gradebook.getScore(lineitem, user.getId(), false);
-        }
+        Score score = Gradebook.getScore(lineitem, user.getId(), false);
         if (score != null) {
           value = score.getGrade();
           if (score.getOutcome().getGradebookStatus().equals(GradebookStatus.NEEDSGRADING)) {

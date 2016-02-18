@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,29 +17,17 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.0.0 29-Jan-12
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12  Updated to allow for tools defined by URL
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 */
 package org.oscelot.blackboard.basiclti.services;
 
 import java.util.Map;
-import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import java.net.URLDecoder;
-
-import java.io.UnsupportedEncodingException;
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -55,18 +43,12 @@ import net.oauth.OAuthConsumer;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthValidator;
 import net.oauth.SimpleOAuthValidator;
-
-import blackboard.platform.context.Context;
-import blackboard.platform.context.ContextManagerFactory;
-import blackboard.data.course.Course;
-import blackboard.data.content.Content;
-import blackboard.persist.Id;
-import blackboard.persist.PersistenceException;
+import net.oauth.OAuthException;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Constants;
-import org.oscelot.blackboard.basiclti.Utils;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Constants;
+import org.oscelot.blackboard.lti.Utils;
 
 
 public class Controller extends HttpServlet {
@@ -88,8 +70,9 @@ public class Controller extends HttpServlet {
     this.response.setConsumerRef(String.valueOf(System.currentTimeMillis()));
     String description = "ext.codeminor.request";
     OAuthMessage message = OAuthServlet.getMessage(request, null);
-    Map<String,String> authHeaders = getAuthorizationHeaders(message);
+    Map<String,String> authHeaders = Utils.getAuthorizationHeaders(message);
     String consumerKey = authHeaders.get("oauth_consumer_key");
+    String signatureMethod = authHeaders.get("oauth_signature_method");
 
     String xml = message.readBodyAsString();
     String actionName = null;
@@ -140,7 +123,7 @@ public class Controller extends HttpServlet {
       }
     }
     if (ok) {
-      ok = Utils.checkBodyHash(message.getAuthorizationHeader(null), xml);
+      ok = Utils.checkBodyHash(message.getAuthorizationHeader(null), signatureMethod, xml);
       if (!ok) {
         description = "svc.codeminor.bodyhash";
       }
@@ -171,28 +154,6 @@ public class Controller extends HttpServlet {
     return "Extension services";
   }
 
-  private Context initContext(String course, String content) {
-
-    Context ctx = ContextManagerFactory.getInstance().getContext();
-    Id vhId = Id.UNSET_ID;
-    Id courseId = Id.UNSET_ID;
-    Id contentId = Id.UNSET_ID;
-    try {
-      vhId = ctx.getVirtualHost().getId();
-      if (course != null) {
-        courseId = Id.generateId(Course.DATA_TYPE, course);
-      }
-      if (content != null) {
-        contentId = Id.generateId(Content.DATA_TYPE, content);
-      }
-    } catch (PersistenceException e) {
-    }
-
-    return ContextManagerFactory.getInstance().setContext(vhId, courseId, Id.UNSET_ID,
-       Id.UNSET_ID, contentId);
-
-  }
-
   private boolean getServicesData(String key, String param) {
 
     String[] data = param.split(Constants.HASH_SEPARATOR);
@@ -209,11 +170,23 @@ public class Controller extends HttpServlet {
       }
       toolId = data[3];
       ok = (courseId.length() > 0);
+      if (!ok) {
+        B2Context.log(true, "getServicesData - no courseId: " + param);
+      }
     }
     if (ok) {
-      this.b2Context.setContext(initContext(courseId, contentId));
-      this.tool = new Tool(this.b2Context, toolId);
+      this.b2Context.setContext(Utils.initContext(courseId, contentId));
+      boolean nodeSupport = this.b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      if (nodeSupport) {
+        this.b2Context.setInheritSettings(this.b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
+      } else {
+        this.b2Context.clearNode();
+      }
+      this.tool = Utils.getTool(this.b2Context, toolId);
       ok = key.equals(this.tool.getLaunchGUID());
+      if (!ok) {
+        B2Context.log(true, "getServicesData - invalid consumer key: " + key + "; expected " + tool.getLaunchGUID());
+      }
     }
     if (ok) {
       this.servicesData = new ArrayList<String>();
@@ -224,6 +197,9 @@ public class Controller extends HttpServlet {
         hash.append(item);
       }
       ok = Utils.getHash(hash.toString(), this.tool.getSendUUID()).equals(Utils.decodeHash(data[0]));
+      if (!ok) {
+        B2Context.log(true, "getServicesData - invalid hash");
+      }
     }
 
     return ok;
@@ -242,47 +218,18 @@ public class Controller extends HttpServlet {
     OAuthValidator validator = new SimpleOAuthValidator();
     try {
       message.validateMessage(oAuthAccessor, validator);
-    } catch (Exception e) {
-      Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
+    } catch (IOException e) {
       ok = false;
+      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
+    } catch (URISyntaxException e) {
+      ok = false;
+      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
+    } catch (OAuthException e) {
+      ok = false;
+      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     }
 
     return ok;
-
-  }
-
-// ---------------------------------------------------
-// Function to get the authorization headers from a request
-
-  private Map<String,String> getAuthorizationHeaders(OAuthMessage message) {
-
-    Map<String,String> headers = new HashMap<String,String>();
-
-    try {
-      String[] authHeaders = message.getAuthorizationHeader("").split(", ");
-      for (int i = 0; i < authHeaders.length; i++) {
-        String[] header = authHeaders[i].split("=");
-        if (header.length == 2) {
-          String name = header[0].trim();
-          String value = header[1].trim();
-          if (value.equals("\"\"")) {
-            value = "";
-          } else if ((value.length() > 2) && value.startsWith("\"")) {
-            value = value.substring(1, value.length() - 1);
-          }
-          try {
-            name = URLDecoder.decode(name, "UTF-8");
-            value = URLDecoder.decode(value, "UTF-8");
-          } catch (UnsupportedEncodingException e) {
-          }
-          headers.put(name, value);
-        }
-      }
-    } catch (IOException e) {
-      headers.clear();
-    }
-
-    return headers;
 
   }
 

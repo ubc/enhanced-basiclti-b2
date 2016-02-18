@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,26 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added OpenIn and WindowName settings
-                       Corrected names of LTI roles
-      1.1.3  1-Jan-11  Added User ID type option
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12  Added "By XML" option
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12  Added options for creating grade center columns
-      2.3.1 17-Dec-12  Added grade column options
-      2.3.2  3-Apr-13
 --%>
+<%@page import="blackboard.persist.Id"%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.Map,
@@ -51,26 +33,39 @@
                 blackboard.persist.PersistenceException,
                 blackboard.servlet.tags.ngui.datacollection.DataElementTag,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.Utils,
-                org.oscelot.blackboard.basiclti.Tool,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.MenuItem,
-                org.oscelot.blackboard.basiclti.CourseTool,
-                org.oscelot.blackboard.basiclti.Constants"
+                org.oscelot.blackboard.lti.Utils,
+                org.oscelot.blackboard.lti.services.Service,
+                org.oscelot.blackboard.lti.ServiceList,
+                org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.MenuItem,
+                org.oscelot.blackboard.lti.CourseTool,
+                org.oscelot.blackboard.lti.Constants"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.tool.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.tool";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
+  Utils.initNode(session, b2Context, false);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, "");
-  String toolName = b2Context.getRequestParameter(Constants.TOOL_NAME, "");
+  String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
+  String toolName = b2Context.getRequestParameter(Constants.TOOL_NAME,
+     b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME, ""));
+  String toolDescription = b2Context.getRequestParameter(Constants.TOOL_DESCRIPTION,
+     b2Context.getSetting(toolSettingPrefix + Constants.TOOL_DESCRIPTION, ""));
   String toolUrl = b2Context.getRequestParameter(Constants.TOOL_URL, "");
   String xml = b2Context.getRequestParameter(Constants.TOOL_XML, "");
-  boolean byXML = (xml.length() > 0);
+  String xmlurl = b2Context.getRequestParameter(Constants.TOOL_XMLURL, "");
+  boolean byXML = (xml.length() > 0) || (xmlurl.length() > 0);
+  ServiceList services = new ServiceList(b2Context, true);
 
   boolean ok = true;
+  boolean tabXml = false;
   boolean submitForm = request.getMethod().equalsIgnoreCase("POST");
   boolean isNewTool = (toolId.length() <= 0);
 
@@ -80,37 +75,69 @@
 
   Map<String,String> settings = null;
   if (byXML) {
-    boolean isSecure = b2Context.getServerUrl().startsWith("https://");
-    settings = Utils.getToolFromXML(xml, isSecure, false, true, false);
-    if (settings.containsKey(Constants.TOOL_NAME)) {
-      if (toolName.length() <= 0) {
-        toolName = settings.get(Constants.TOOL_NAME);
+    ok = (xml.length() > 0) ^ (xmlurl.length() > 0);
+    if (!ok) {
+      messageResourceString = "page.system.tool.receipt.bothxml";
+      tabXml = true;
+    } else if (xmlurl.length() > 0) {
+      xml = Utils.readUrlAsString(b2Context, xmlurl);
+      if (xml.length() <= 0) {
+        ok = false;
+        messageResourceString = "page.system.tool.receipt.invalidxmlurl";
+        tabXml = true;
+      } else {
+        xmlurl = "";
       }
-      settings.remove(Constants.TOOL_NAME);
-    }
-    if (settings.containsKey(Constants.TOOL_URL)) {
-      if (toolUrl.length() <= 0) {
-        toolUrl = settings.get(Constants.TOOL_URL);
-      }
-      settings.remove(Constants.TOOL_URL);
     }
   }
-  if (submitForm && isNewTool) {
-//    toolId = Utils.getNewToolId(b2Context, Constants.TOOL_PARAMETER_PREFIX + ".", toolName);
+  if (ok) {
+    if (byXML) {
+      boolean isSecure = b2Context.getServerUrl().startsWith("https://");
+      settings = Utils.getToolFromXML(b2Context, xml, isSecure, false, true, false);
+      if (settings == null) {
+        ok = false;
+        messageResourceString = "page.system.tool.receipt.invalidxml";
+        tabXml = true;
+      } else {
+        if (settings.containsKey(Constants.TOOL_NAME)) {
+          if (toolName.length() <= 0) {
+            toolName = settings.get(Constants.TOOL_NAME);
+          }
+          settings.remove(Constants.TOOL_NAME);
+        }
+        if (settings.containsKey(Constants.TOOL_URL)) {
+          if (toolUrl.length() <= 0) {
+            toolUrl = settings.get(Constants.TOOL_URL);
+          }
+          settings.remove(Constants.TOOL_URL);
+        }
+      }
+    }
+  }
+  if (ok && submitForm && isNewTool) {
     toolId = Utils.getNewToolId(b2Context, toolName, false, true);
   } else if (toolId.length() <= 0) {
     toolId = Constants.DEFAULT_TOOL_ID;
   }
-  String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
+  toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
+  boolean nameChange = false;
+  boolean descriptionChange = false;
   if (submitForm) {
-//    boolean menuLabelChange = false;
-//    boolean toolLabelChange = false;
-    boolean nameChange = !toolName.equals(b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME, toolName));
-//      menuLabelChange = b2Context.getSetting(toolSettingPrefix + Constants.TOOL_MENUITEM, "").length() > 0;
-    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_NAME, toolName);
+    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId,
+       b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId, Constants.DATA_FALSE));
+    if (b2Context.getIsRootNode()) {
+      nameChange = !toolName.equals(b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME, toolName));
+      descriptionChange = !toolDescription.equals(b2Context.getSetting(toolSettingPrefix + Constants.TOOL_DESCRIPTION, toolDescription));
+      b2Context.setSetting(toolSettingPrefix + Constants.TOOL_NAME, toolName);
+      b2Context.setSetting(toolSettingPrefix + Constants.TOOL_DESCRIPTION, toolDescription);
+    }
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_URL, toolUrl);
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_GUID, b2Context.getRequestParameter(Constants.TOOL_GUID, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_SECRET, b2Context.getRequestParameter(Constants.TOOL_SECRET, ""));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_SIGNATURE_METHOD, b2Context.getRequestParameter(Constants.TOOL_SIGNATURE_METHOD, ""));
+    b2Context.setSetting(toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONTENT_ITEM, b2Context.getRequestParameter(Constants.MESSAGE_CONTENT_ITEM, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG, b2Context.getRequestParameter(Constants.MESSAGE_CONFIG, Constants.DATA_FALSE));
+    b2Context.setSetting(toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_DASHBOARD, b2Context.getRequestParameter(Constants.MESSAGE_DASHBOARD, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES, b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_NOTUSED));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_COLUMN, b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_COLUMN, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_FORMAT, b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_FORMAT, Constants.EXT_OUTCOMES_COLUMN_PERCENTAGE));
@@ -122,9 +149,15 @@
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_MEMBERSHIPS_GROUPS, b2Context.getRequestParameter(Constants.TOOL_EXT_MEMBERSHIPS_GROUPS, Constants.DATA_FALSE));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_MEMBERSHIPS_GROUPNAMES, b2Context.getRequestParameter(Constants.TOOL_EXT_MEMBERSHIPS_GROUPNAMES, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EXT_SETTING, b2Context.getRequestParameter(Constants.TOOL_EXT_SETTING, Constants.DATA_NOTUSED));
+    for (Iterator<Service> iter = services.getList().iterator(); iter.hasNext();) {
+      Service service = iter.next();
+      b2Context.setSetting(toolSettingPrefix + Constants.SERVICE_PARAMETER_PREFIX + "." + service.getId(),
+         b2Context.getRequestParameter(Constants.SERVICE_PARAMETER_PREFIX + "." + service.getId(), Constants.DATA_FALSE));
+    }
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CSS, b2Context.getRequestParameter(Constants.TOOL_CSS, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ICON, b2Context.getRequestParameter(Constants.TOOL_ICON, ""));
-    if (isNewTool) {
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ICON_DISABLED, b2Context.getRequestParameter(Constants.TOOL_ICON_DISABLED, ""));
+    if (ok && isNewTool) {
       String defaultToolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + Constants.DEFAULT_TOOL_ID + ".";
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_ID,
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_CONTEXT_ID, Constants.DATA_FALSE));
@@ -148,7 +181,7 @@
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_AVATAR, Constants.DATA_FALSE));
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLES,
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
-      boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
       for (Iterator<CourseRole> iter = Utils.getCourseRoles(systemRolesOnly).iterator(); iter.hasNext();) {
         CourseRole role = iter.next();
         b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(),
@@ -169,8 +202,9 @@
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_SPLASHTEXT, ""));
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CUSTOM,
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_CUSTOM, ""));
+      b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONSUMER_GUID, Constants.DATA_TRUE);
     }
-    if (byXML) {
+    if (ok && byXML) {
       for (Iterator<Map.Entry<String,String>> iter = settings.entrySet().iterator(); iter.hasNext();) {
         Map.Entry<String,String> setting = iter.next();
         b2Context.setSetting(toolSettingPrefix + setting.getKey(), setting.getValue());
@@ -185,23 +219,27 @@
       } else if (domain != null) {
         b2Context.setSetting(toolSettingPrefix + Constants.TOOL_GUID, null);
         b2Context.setSetting(toolSettingPrefix + Constants.TOOL_SECRET, null);
+        b2Context.setSetting(toolSettingPrefix + Constants.TOOL_SIGNATURE_METHOD, null);
       }
       if (!ok) {
         messageResourceString = "page.system.tool.receipt.xml";
+        ok = true;
       }
     }
-    ok = (toolName.length() > 0) && (toolUrl.length() > 0);
-    if (ok && (toolUrl.length() > 0)) {
-      try {
-        URL url = new URL(toolUrl);
-      } catch (MalformedURLException e) {
-        ok = false;
-        messageResourceString = "page.system.tool.receipt.invalidurl";
+    if (ok) {
+      ok = (toolName.length() > 0) && (toolUrl.length() > 0);
+      if (ok && (toolUrl.length() > 0)) {
+        try {
+          URL url = new URL(toolUrl);
+        } catch (MalformedURLException e) {
+          ok = false;
+          messageResourceString = "page.system.tool.receipt.invalidurl";
+        }
+      } else if (ok) {
+        messageResourceString = "page.receipt.success";
+      } else if (messageResourceString == null) {
+        messageResourceString = "page.system.tool.receipt.incompletetool";
       }
-    } else if (ok) {
-      messageResourceString = "page.receipt.success";
-    } else if (messageResourceString == null) {
-      messageResourceString = "page.system.tool.receipt.incompletetool";
     }
 
     if (ok) {
@@ -211,22 +249,17 @@
       } else {
         b2Context.persistSettings();
       }
-      if (nameChange) {
+      if (nameChange || descriptionChange) {
         Tool tool = new Tool(b2Context, toolId);
-        MenuItem menuItem = tool.getMenuItem();
-        if (menuItem != null) {
-          menuItem.setName(toolName);
-          menuItem.persist();
-        }
-        CourseTool courseTool = tool.getCourseTool();
-        if (courseTool != null) {
-          courseTool.setName(toolName);
-          courseTool.persist();
+        tool.getCourseTool();
+        if (nameChange) {
+          tool.getMenuItem();
         }
       }
       cancelUrl = b2Context.setReceiptOptions(cancelUrl,
          b2Context.getResourceString(messageResourceString), null);
       response.sendRedirect(cancelUrl);
+      return;
     }
   }
 
@@ -246,13 +279,20 @@
   Map<String,String> resourceStrings = b2Context.getResourceStrings();
   pageContext.setAttribute("bundle", resourceStrings);
   if (!isNewTool) {
-     pageContext.setAttribute("titleSuffix", ": " + b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME));
+    pageContext.setAttribute("titleSuffix", ": " + b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME));
   }
 
   params.put(Constants.TOOL_NAME, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_NAME));
   params.put(Constants.TOOL_URL, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_URL));
   params.put(Constants.TOOL_GUID, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_GUID));
   params.put(Constants.TOOL_SECRET, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_SECRET));
+  params.put(Constants.TOOL_DESCRIPTION, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_DESCRIPTION));
+  params.put(Constants.MESSAGE_CONTENT_ITEM,
+     b2Context.getSetting(toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONTENT_ITEM));
+  params.put(Constants.MESSAGE_CONFIG,
+     b2Context.getSetting(toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG));
+  params.put(Constants.MESSAGE_DASHBOARD,
+     b2Context.getSetting(toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_DASHBOARD));
   params.put(Constants.TOOL_EXT_OUTCOMES, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES, Constants.DATA_NOTUSED));
   params.put(Constants.TOOL_EXT_OUTCOMES_COLUMN, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_COLUMN, Constants.DATA_FALSE));
   params.put(Constants.TOOL_EXT_OUTCOMES_FORMAT, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_FORMAT, Constants.EXT_OUTCOMES_COLUMN_PERCENTAGE));
@@ -266,6 +306,13 @@
   params.put(Constants.TOOL_EXT_SETTING, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_SETTING, Constants.DATA_NOTUSED));
   params.put(Constants.TOOL_CSS, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_CSS));
   params.put(Constants.TOOL_ICON, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ICON));
+  params.put(Constants.TOOL_ICON_DISABLED, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ICON_DISABLED));
+
+  boolean tabSetting = !tabXml;
+
+  params.put("signaturemethod" + Constants.DATA_SIGNATURE_METHOD_SHA1, "false");
+  params.put("signaturemethod" + Constants.DATA_SIGNATURE_METHOD_SHA256, "false");
+  params.put("signaturemethod" + b2Context.getSetting(toolSettingPrefix + Constants.TOOL_SIGNATURE_METHOD, Constants.DATA_SIGNATURE_METHOD_SHA1), "true");
 
   boolean outcomesEnabled = b2Context.getSetting("ext_outcomes", Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   boolean membershipsEnabled = b2Context.getSetting("ext_memberships", Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
@@ -279,6 +326,10 @@
   pageContext.setAttribute("query", query);
   pageContext.setAttribute("params", params);
   pageContext.setAttribute("cancelUrl", cancelUrl);
+  pageContext.setAttribute("isNotRootNode", !b2Context.getIsRootNode());
+  if (!b2Context.getIsRootNode()) {
+    pageContext.setAttribute("disabled", " disabled=\"disabled\"");
+  }
 %>
   <bbNG:pageHeader instructions="${bundle['page.system.tool.instructions']}">
     <bbNG:breadcrumbBar environment="SYS_ADMIN_PANEL" navItem="admin_plugin_manage">
@@ -287,7 +338,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.system.tool.title']}${titleSuffix}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="tool.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="tool.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
 <%
   if (!isNewTool) {
 %>
@@ -296,10 +347,14 @@
   }
 %>
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
-    <bbNG:stepGroup active="true" title="${bundle['page.system.tool.tab.bysetting']}">
+    <bbNG:stepGroup active="<%=tabSetting%>" title="${bundle['page.system.tool.tab.bysetting']}">
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step1.title']}" instructions="${bundle['page.system.tool.step1.instructions']}">
         <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step1.name.label']}">
-          <bbNG:textElement type="string" name="<%=Constants.TOOL_NAME%>" value="<%=params.get(Constants.TOOL_NAME)%>" size="50" helpText="${bundle['page.system.tool.step1.name.instructions']}" />
+          <bbNG:textElement isDisabled="${isNotRootNode}" type="string" name="<%=Constants.TOOL_NAME%>" value="<%=params.get(Constants.TOOL_NAME)%>" size="50" helpText="${bundle['page.system.tool.step1.name.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step1.description.label']}">
+          <textarea name="<%=Constants.TOOL_DESCRIPTION%>" cols="80" rows="5"${disabled}>${params.description}</textarea>
+          <bbNG:elementInstructions text="${bundle['page.system.tool.step1.description.instructions']}" />
         </bbNG:dataElement>
       </bbNG:step>
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step2.title']}" instructions="${bundle['page.system.tool.step2.instructions']}">
@@ -315,9 +370,26 @@
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step2.secret.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_SECRET%>" value="<%=params.get(Constants.TOOL_SECRET)%>" size="50" helpText="${bundle['page.system.tool.step2.secret.instructions']}" />
         </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2.signaturemethod.label']}">
+          <bbNG:selectElement name="<%=Constants.TOOL_SIGNATURE_METHOD%>" helpText="${bundle['page.system.tool.step2.signaturemethod.instructions']}">
+            <bbNG:selectOptionElement isSelected="${params.signaturemethodSHA1}" value="<%=Constants.DATA_SIGNATURE_METHOD_SHA1%>" optionLabel="${bundle['page.system.tool.signaturemethod.sha1']}" />
+            <bbNG:selectOptionElement isSelected="${params.signaturemethodSHA256}" value="<%=Constants.DATA_SIGNATURE_METHOD_SHA256%>" optionLabel="${bundle['page.system.tool.signaturemethod.sha256']}" />
+          </bbNG:selectElement>
+        </bbNG:dataElement>
 <%
   }
 %>
+      </bbNG:step>
+      <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step2a.title']}" instructions="${bundle['page.system.tool.step2a.instructions']}">
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2a.contentitem.label']}">
+          <bbNG:checkboxElement isSelected="${params.contentitem}" name="<%=Constants.MESSAGE_CONTENT_ITEM%>" value="true" helpText="${bundle['page.system.tool.step2a.contentitem.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2a.config.label']}">
+          <bbNG:checkboxElement isSelected="${params.config}" name="<%=Constants.MESSAGE_CONFIG%>" value="true" helpText="${bundle['page.system.tool.step2a.config.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2a.dashboard.label']}">
+          <bbNG:checkboxElement isSelected="${params.dashboard}" name="<%=Constants.MESSAGE_DASHBOARD%>" value="true" helpText="${bundle['page.system.tool.step2a.dashboard.instructions']}" />
+        </bbNG:dataElement>
       </bbNG:step>
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step3.title']}" instructions="${bundle['page.system.tool.step3.instructions']}">
 <%
@@ -396,6 +468,28 @@
   }
 %>
       </bbNG:step>
+      <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step3b.title']}" instructions="${bundle['page.system.tool.step3b.instructions']}">
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step3b.services.label']}">
+          <bbNG:settingsPageList collection="<%=services.getList()%>" objectVar="service" className="Service"
+                                 description="${bundle['page.system.tool.step3b.services.description']}" reorderable="false"
+                                 emptyMsg="${bundle['page.system.tool.step3b.services.empty']}">
+            <bbNG:listElement isRowHeader="false" name="I" label="${bundle['page.system.tool.step3b.services.selected']}">
+<%
+   pageContext.setAttribute("selected", b2Context.getSetting(toolSettingPrefix + Constants.SERVICE_PARAMETER_PREFIX + "." + service.getId(), Constants.DATA_FALSE));
+   String disabled = "";
+   if (!service.getIsEnabled().equals(Constants.DATA_TRUE)) {
+     disabled = " [" + b2Context.getResourceString("page.system.tool.step3b.services.disabled", "") + "]";
+   }
+   pageContext.setAttribute("disabled", disabled);
+%>
+              <bbNG:checkboxElement isSelected="${selected}" name="service.${service.id}" value="true" />
+            </bbNG:listElement>
+            <bbNG:listElement isRowHeader="true" label="${bundle['page.system.tool.step3b.services.name']}" name="name">
+              ${service.name}${disabled}
+            </bbNG:listElement>
+          </bbNG:settingsPageList>
+        </bbNG:dataElement>
+      </bbNG:step>
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step4.title']}" instructions="${bundle['page.system.tool.step4.instructions']}">
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.css.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_CSS%>" value="<%=params.get(Constants.TOOL_CSS)%>" size="80" helpText="${bundle['page.system.tool.step4.css.instructions']}" />
@@ -403,12 +497,19 @@
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icon.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON%>" value="<%=params.get(Constants.TOOL_ICON)%>" size="80" helpText="${bundle['page.system.tool.step4.icon.instructions']}" />
         </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icondisabled.label']}">
+          <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON_DISABLED%>" value="<%=params.get(Constants.TOOL_ICON_DISABLED)%>" size="80" helpText="${bundle['page.system.tool.step4.icondisabled.instructions']}" />
+        </bbNG:dataElement>
       </bbNG:step>
     </bbNG:stepGroup>
-    <bbNG:stepGroup active="false>" title="${bundle['page.system.tool.tab.byxml']}">
+    <bbNG:stepGroup active="<%=tabXml%>" title="${bundle['page.system.tool.tab.byxml']}">
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.xml.title']}" instructions="${bundle['page.system.tool.xml.instructions']}">
-        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.xml.label']}">
-          <textarea name="<%=Constants.TOOL_XML%>" cols="80" rows="20"></textarea>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.xml.url.label']}">
+          <bbNG:textElement type="string" name="<%=Constants.TOOL_XMLURL%>" value="<%=xmlurl%>" size="80" helpText="${bundle['page.system.tool.xml.url.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.xml.xml.label']}">
+          <textarea name="<%=Constants.TOOL_XML%>" cols="80" rows="20"><%=xml%></textarea>
+          <bbNG:elementInstructions text="${bundle['page.system.tool.xml.xml.instructions']}" />
         </bbNG:dataElement>
       </bbNG:step>
     </bbNG:stepGroup>

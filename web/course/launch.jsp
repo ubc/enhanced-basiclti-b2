@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,38 +17,22 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      1.0.0  9-Feb-10  First public release
-      1.1.0  2-Aug-10  Renamed class domain to org.oscelot
-      1.1.1  7-Aug-10
-      1.1.2  9-Oct-10  Added OpenIn and WindowName settings
-                       Corrected names of LTI roles
-      1.1.3  1-Jan-11  Added User ID type option
-      1.2.0 17-Sep-11  Added support for outcomes, memberships and setting extension services
-      1.2.1 10-Oct-11
-      1.2.2 13-Oct-11
-      1.2.3 14-Oct-11
-      2.0.0 29-Jan-12  Significant update to user interface
-      2.0.1 20-May-12  Fixed page doctype
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.Map,
                 java.util.HashMap,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
-                org.oscelot.blackboard.basiclti.ToolList,
-                org.oscelot.blackboard.basiclti.Constants,
-                org.oscelot.blackboard.basiclti.Utils"
+                org.oscelot.blackboard.lti.ToolList,
+                org.oscelot.blackboard.lti.Constants,
+                org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.system.launch.title']}">
+<bbNG:learningSystemPage title="${bundle['page.system.launch.title']}" entitlement="course.control_panel.VIEW">
 <%
+  String formName = "page.course.launch";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
@@ -58,6 +42,8 @@
   if (request.getMethod().equalsIgnoreCase("POST")) {
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_OPEN_IN, b2Context.getRequestParameter(Constants.TOOL_OPEN_IN, Constants.DATA_FRAME));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_WINDOW_NAME, b2Context.getRequestParameter(Constants.TOOL_WINDOW_NAME, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_WINDOW_WIDTH, b2Context.getRequestParameter(Constants.TOOL_WINDOW_WIDTH, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_WINDOW_HEIGHT, b2Context.getRequestParameter(Constants.TOOL_WINDOW_HEIGHT, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SPLASH, b2Context.getRequestParameter(Constants.TOOL_SPLASH, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SPLASHFORMAT, b2Context.getRequestParameter(Constants.TOOL_SPLASHFORMAT, "H"));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SPLASHTEXT, b2Context.getRequestParameter(Constants.TOOL_SPLASHTEXT, ""));
@@ -70,6 +56,7 @@
     response.sendRedirect(cancelUrl);
   }
 
+  boolean allowRender = b2Context.getSetting(Constants.TOOL_RENDER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   pageContext.setAttribute("courseId", b2Context.getRequestParameter("course_id", ""));
   Map<String,String> params = new HashMap<String,String>();
 
@@ -86,6 +73,8 @@
   params.put(Constants.TOOL_ID, toolId);
   params.put(Constants.TOOL_OPEN_IN, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_OPEN_IN, Constants.DATA_FRAME));
   params.put(Constants.TOOL_WINDOW_NAME, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_WINDOW_NAME, ""));
+  params.put(Constants.TOOL_WINDOW_WIDTH, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_WINDOW_WIDTH, ""));
+  params.put(Constants.TOOL_WINDOW_HEIGHT, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_WINDOW_HEIGHT, ""));
   params.put(Constants.TOOL_SPLASH, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_SPLASH, Constants.DATA_FALSE));
   params.put(Constants.TOOL_SPLASHFORMAT, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_SPLASHFORMAT));
   params.put(Constants.TOOL_SPLASHTEXT, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_SPLASHTEXT));
@@ -99,6 +88,10 @@
      b2Context.getResourceString("page.system.launch.openin." + Constants.DATA_WINDOW));
   params.put(Constants.TOOL_OPEN_IN + Constants.DATA_IFRAME + "label",
      b2Context.getResourceString("page.system.launch.openin." + Constants.DATA_IFRAME));
+  params.put(Constants.TOOL_OPEN_IN + Constants.DATA_POPUP + "label",
+     b2Context.getResourceString("page.system.launch.openin." + Constants.DATA_POPUP));
+  params.put(Constants.TOOL_OPEN_IN + Constants.DATA_OVERLAY + "label",
+     b2Context.getResourceString("page.system.launch.openin." + Constants.DATA_OVERLAY));
   pageContext.setAttribute("query", query);
   pageContext.setAttribute("params", params);
   pageContext.setAttribute("cancelUrl", cancelUrl);
@@ -110,7 +103,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${title}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="launch.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="launch.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <input type="hidden" name="<%=Constants.TOOL_ID%>" value="<%=params.get(Constants.TOOL_ID)%>" />
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.system.launch.step1.title']}" instructions="${bundle['page.system.launch.step1.instructions']}">
@@ -120,10 +113,24 @@
           <bbNG:selectOptionElement isSelected="${params.openinFNB}" value="<%=Constants.DATA_FRAME_NO_BREADCRUMBS%>" optionLabel="${params.openinFNBlabel}" />
           <bbNG:selectOptionElement isSelected="${params.openinW}" value="<%=Constants.DATA_WINDOW%>" optionLabel="${params.openinWlabel}" />
           <bbNG:selectOptionElement isSelected="${params.openinI}" value="<%=Constants.DATA_IFRAME%>" optionLabel="${params.openinIlabel}" />
+<%
+  if (allowRender) {
+%>
+          <bbNG:selectOptionElement isSelected="${params.openinP}" value="<%=Constants.DATA_POPUP%>" optionLabel="${params.openinPlabel}" />
+          <bbNG:selectOptionElement isSelected="${params.openinO}" value="<%=Constants.DATA_OVERLAY%>" optionLabel="${params.openinOlabel}" />
+<%
+  }
+%>
         </bbNG:selectElement>
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="false" label="${bundle['page.system.launch.step1.windowname.label']}">
         <bbNG:textElement type="string" name="<%=Constants.TOOL_WINDOW_NAME%>" value="<%=params.get(Constants.TOOL_WINDOW_NAME)%>" size="20" helpText="${bundle['page.system.launch.step1.windowname.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.launch.step1.windowwidth.label']}">
+        <bbNG:textElement type="string" name="<%=Constants.TOOL_WINDOW_WIDTH%>" value="<%=params.get(Constants.TOOL_WINDOW_WIDTH)%>" size="10" helpText="${bundle['page.system.launch.step1.windowwidth.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.launch.step1.windowheight.label']}">
+        <bbNG:textElement type="string" name="<%=Constants.TOOL_WINDOW_HEIGHT%>" value="<%=params.get(Constants.TOOL_WINDOW_HEIGHT)%>" size="10" helpText="${bundle['page.system.launch.step1.windowheight.instructions']}" />
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.launch.step1.show.label']}">
         <bbNG:checkboxElement isSelected="${params.splash}" name="<%=Constants.TOOL_SPLASH%>" value="true" helpText="${bundle['page.system.launch.step1.show.instructions']}" />

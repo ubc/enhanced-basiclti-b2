@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2013  Stephen P Vickers
+    Copyright (C) 2015  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,15 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     Contact: stephen@spvsoftwareproducts.com
-
-    Version history:
-      2.0.0 29-Jan-12
-      2.0.1 20-May-12
-      2.1.0 18-Jun-12
-      2.2.0  2-Sep-12
-      2.3.0  5-Nov-12
-      2.3.1 17-Dec-12
-      2.3.2  3-Apr-13
 */
 package org.oscelot.blackboard.basiclti.extensions;
 
@@ -35,8 +26,7 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.text.SimpleDateFormat;
 
-import org.oscelot.blackboard.basiclti.Gradebook;
-import org.oscelot.blackboard.basiclti.Gradebook_v90;
+import org.oscelot.blackboard.lti.Gradebook;
 
 import blackboard.platform.persistence.PersistenceServiceFactory;
 import blackboard.persist.BbPersistenceManager;
@@ -55,10 +45,9 @@ import blackboard.data.gradebook.Score;
 import blackboard.data.gradebook.impl.Outcome.GradebookStatus;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import org.oscelot.blackboard.basiclti.Tool;
-import org.oscelot.blackboard.basiclti.Utils;
-
-import org.oscelot.blackboard.basiclti.Constants;
+import org.oscelot.blackboard.lti.Tool;
+import org.oscelot.blackboard.lti.Utils;
+import org.oscelot.blackboard.lti.Constants;
 
 
 public class Outcomes implements Action {
@@ -70,9 +59,6 @@ public class Outcomes implements Action {
      Response response) {
 
     boolean ok = true;
-
-    String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
-    boolean isV90 = (version[0].equals("9") && version[1].equals("0"));
 
     String sourcedid = b2Context.getRequestParameter("sourcedid", "");
 
@@ -99,6 +85,8 @@ public class Outcomes implements Action {
           user = userdbloader.loadByUserName(userId);
         } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
           user = userdbloader.loadById(bbPm.generateId(User.DATA_TYPE, userId));
+        } else if (userIdType.equals(Constants.DATA_UUID)) {
+          user = userdbloader.loadByUuid(userId);
         } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
           SearchParameter sp = new SearchParameter(SearchKey.StudentId, userId, SearchOperator.Equals);
           UserSearch us = new UserSearch();
@@ -124,7 +112,7 @@ public class Outcomes implements Action {
     }
 // Load enrolment
     if (ok) {
-      CourseMembership coursemembership = null;
+      CourseMembership coursemembership;
       try {
         CourseMembershipDbLoader coursemembershipdbloader = (CourseMembershipDbLoader)bbPm.getLoader(CourseMembershipDbLoader.TYPE);
         coursemembership = coursemembershipdbloader.loadByCourseAndUserId(b2Context.getContext().getCourseId(), user.getId());
@@ -146,20 +134,11 @@ public class Outcomes implements Action {
     String date = "";
     if (ok) {
       value = b2Context.getRequestParameter("result_resultscore_textstring", null);
-      Lineitem lineitem = null;
-      if (isV90) {
-        lineitem = Gradebook_v90.getColumn(b2Context, tool.getId(), type, null, false, false, value, true);
-      } else {
-        lineitem = Gradebook.getColumn(b2Context, tool.getId(), tool.getName(), type, null, false, false, value, true);
-      }
+      Lineitem lineitem = Gradebook.getColumn(b2Context, tool.getId(), tool.getName(), type, null, false, false, value, true);
       if (actionName.equals(Constants.EXT_OUTCOMES_WRITE)) {
         ok = ((value != null) && (value.length() > 0));
         if (ok) {
-          if (isV90) {
-            ok = Gradebook_v90.updateGradebook(user, lineitem, type, value);
-          } else {
-            ok = Gradebook.updateGradebook(user, lineitem, type, value);
-          }
+          ok = Gradebook.updateGradebook(user, lineitem, type, value);
           if (ok) {
             description = "ext.description.outcomes.updated";
             actionName = Constants.EXT_OUTCOMES_READ;
@@ -171,11 +150,7 @@ public class Outcomes implements Action {
         }
       }
       if (actionName.equals(Constants.EXT_OUTCOMES_DELETE)) {
-        if (isV90) {
-          ok = Gradebook_v90.updateGradebook(user, lineitem, type, "");
-        } else {
-          ok = Gradebook.updateGradebook(user, lineitem, type, "");
-        }
+        ok = Gradebook.updateGradebook(user, lineitem, type, "");
         if (ok) {
           value = null;
           description = "ext.description.outcomes.deleted";
@@ -183,12 +158,7 @@ public class Outcomes implements Action {
           codeMinor = "ext.codeminor.system";
         }
       } else if (actionName.equals(Constants.EXT_OUTCOMES_READ)) {
-        Score score = null;
-        if (isV90) {
-          score = Gradebook_v90.getScore(lineitem, user.getId(), false);
-        } else {
-          score = Gradebook.getScore(lineitem, user.getId(), false);
-        }
+        Score score = Gradebook.getScore(lineitem, user.getId(), false);
         if (score != null) {
           value = score.getGrade();
           if (score.getOutcome().getGradebookStatus().equals(GradebookStatus.NEEDSGRADING)) {
