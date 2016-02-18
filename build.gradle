@@ -64,6 +64,8 @@ dependencies {
     // You should NEVER include Learn JARs (other than webapis) in your B2.
     providedCompile("blackboard.platform:bb-platform:$ext.learnVersion") { transitive = false }
     providedCompile("blackboard.platform:bb-taglibs:$ext.learnVersion") { transitive = false }
+    providedCompile('org.jdom:jdom:1.1.3') { transitive = false }
+    providedCompile('net.sf.json-lib:json-lib:2.4:jdk15') { transitive = true }
 
     // Building a Spring B2?  Use our Spring APIs!
     // compile "blackboard.platform:bb-spring-webapi:10.1"
@@ -76,18 +78,13 @@ dependencies {
 
     buildUtils "org.oscelot:b2deploy-task:0.1.0"
 
-    compile "com.spvsoftwareproducts:b2context:1.4.01",
-			'org.oscelot.blackboard:lti-assessment:1.0',
+    compile "com.spvsoftwareproducts:b2context:1.6.01",
+            'org.oscelot.blackboard:lti-assessment:1.0',
+            'org.oscelot.blackboard:lti-caliperprofile:1.0',
+            'com.google.code.gson:gson:2.2.4',
             'commons-httpclient:commons-httpclient:3.1',
-            'org.jdom:jdom:1.1.3',
-            'net.sf.json-lib:json-lib:2.4:jdk15',
-            'net.oauth.core:oauth-provider:20100527',
-            'com.google.code.gson:gson:2.2.4'
-    runtime "com.spvsoftwareproducts:b2context:1.3.00",
-            'commons-httpclient:commons-httpclient:3.1',
-            'org.jdom:jdom:1.1.3',
-            'net.sf.json-lib:json-lib:2.4:jdk15',
-            'net.oauth.core:oauth-provider:20100527'
+    compile('net.oauth:oauth-core:20090105:mod1') { transitive = false }
+
     testCompile 'org.testng:testng:6.8.7'
 }
 
