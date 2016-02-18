@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,14 +31,17 @@
                 org.oscelot.blackboard.lti.Constants"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.system.data.title']}" entitlement="course.content.MODIFY">
+<bbNG:learningSystemPage title="${bundle['page.system.data.title']}" entitlement="course.control_panel.VIEW">
 <%
+  String formName = "page.course.data";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, Constants.DEFAULT_TOOL_ID);
   String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
-  boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   List<CourseRole> roles = Utils.getCourseRoles(systemRolesOnly);
 
   if (request.getMethod().equalsIgnoreCase("POST")) {
@@ -46,6 +49,7 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXTIDTYPE, b2Context.getRequestParameter(Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXT_SOURCEDID, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXT_TITLE, b2Context.getRequestParameter(Constants.TOOL_CONTEXT_TITLE, Constants.DATA_FALSE));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_COPY_OF, b2Context.getRequestParameter(Constants.TOOL_EXT_COPY_OF, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_USERID, b2Context.getRequestParameter(Constants.TOOL_USERID, Constants.DATA_NOTUSED));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_USERIDTYPE, b2Context.getRequestParameter(Constants.TOOL_USERIDTYPE, Constants.DATA_PRIMARYKEY));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_USER_SOURCEDID, b2Context.getRequestParameter(Constants.TOOL_USER_SOURCEDID, Constants.DATA_FALSE));
@@ -59,11 +63,13 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getRequestParameter(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_IROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_CROLES, b2Context.getRequestParameter(Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_OBSERVER_ROLES, b2Context.getRequestParameter(Constants.TOOL_OBSERVER_ROLES, Constants.DATA_FALSE));
     for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
       CourseRole role = iter.next();
       b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(), b2Context.getRequestParameterValues(Constants.TOOL_ROLE + role.getIdentifier(), ""));
     }
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ADMINISTRATOR, b2Context.getRequestParameter(Constants.TOOL_ADMINISTRATOR, Constants.DATA_FALSE));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_GUEST, b2Context.getRequestParameter(Constants.TOOL_GUEST, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_RESOURCE_URL, b2Context.getRequestParameter(Constants.TOOL_RESOURCE_URL, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_RESOURCE_SIGNATURE, b2Context.getRequestParameter(Constants.TOOL_RESOURCE_SIGNATURE, ""));
     b2Context.persistSettings(false, true);
@@ -91,11 +97,15 @@
   params.put("contextidtype" + Constants.DATA_PRIMARYKEY, "false");
   params.put("contextidtype" + Constants.DATA_BATCHUID, "false");
   params.put("contextidtype" + Constants.DATA_COURSEID, "false");
+  if (B2Context.getIsVersion(9, 1, 13)) {
+    params.put("contextidtype" + Constants.DATA_UUID, "false");
+  }
   params.put("contextidtype" + b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID), "true");
   params.put(Constants.TOOL_CONTEXT_SOURCEDID, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_FALSE));
   params.put(Constants.TOOL_CONTEXT_TITLE, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXT_TITLE, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_EXT_COPY_OF, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_COPY_OF, Constants.DATA_FALSE));
   params.put(Constants.TOOL_USER_SOURCEDID, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_USER_SOURCEDID, Constants.DATA_FALSE));
-  if (b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+  if (b2Context.getSetting(Constants.TOOL_AVATAR, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
     pageContext.setAttribute("disableAvatar", "false");
     params.put(Constants.TOOL_AVATAR, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_AVATAR, Constants.DATA_FALSE));
   } else {
@@ -109,11 +119,13 @@
   params.put(Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ENCRYPT_EMAIL_DOMAIN, ""));
   params.put(Constants.TOOL_EXT_IROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_IROLES, Constants.DATA_FALSE));
   params.put(Constants.TOOL_EXT_CROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_CROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_OBSERVER_ROLES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_OBSERVER_ROLES, Constants.DATA_FALSE));
   for (Iterator<CourseRole> iter = roles.iterator(); iter.hasNext();) {
     CourseRole role = iter.next();
     params.put(Constants.TOOL_ROLE + role.getIdentifier(), b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier()));
   }
   params.put(Constants.TOOL_ADMINISTRATOR, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ADMINISTRATOR, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_GUEST, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_GUEST, Constants.DATA_FALSE));
 
   params.put("userid" + Constants.DATA_NOTUSED, "false");
   params.put("userid" + Constants.DATA_OPTIONAL, "false");
@@ -124,6 +136,9 @@
   params.put("useridtype" + Constants.DATA_BATCHUID, "false");
   params.put("useridtype" + Constants.DATA_USERNAME, "false");
   params.put("useridtype" + Constants.DATA_STUDENTID, "false");
+  if (B2Context.getIsVersion(9, 1, 13)) {
+    params.put("useridtype" + Constants.DATA_UUID, "false");
+  }
   params.put("useridtype" + b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_USERIDTYPE, Constants.DATA_PRIMARYKEY), "true");
 
   params.put("username" + Constants.DATA_NOTUSED, "false");
@@ -147,7 +162,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${title}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="data.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="data.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <input type="hidden" name="<%=Constants.TOOL_ID%>" value="<%=params.get(Constants.TOOL_ID)%>" />
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step1.title']}" instructions="${bundle['page.system.data.step1.instructions']}">
@@ -159,13 +174,22 @@
           <bbNG:selectOptionElement isSelected="${params.contextidtypeP}" value="<%=Constants.DATA_PRIMARYKEY%>" optionLabel="${bundle['page.system.data.step2.contextidtype.primarykey']}" />
           <bbNG:selectOptionElement isSelected="${params.contextidtypeB}" value="<%=Constants.DATA_BATCHUID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.batchuid']}" />
           <bbNG:selectOptionElement isSelected="${params.contextidtypeC}" value="<%=Constants.DATA_COURSEID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.courseid']}" />
-        </bbNG:selectElement>
+<%
+  if (B2Context.getIsVersion(9, 1, 13)) {
+%>
+          <bbNG:selectOptionElement isSelected="${params.contextidtypeU}" value="<%=Constants.DATA_UUID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.uuid']}" />
+<%
+  }
+%>        </bbNG:selectElement>
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step1.contextsourcedid.label']}">
         <bbNG:checkboxElement isSelected="${params.contextsourcedid}" name="<%=Constants.TOOL_CONTEXT_SOURCEDID%>" value="true" helpText="${bundle['page.system.data.step1.contextsourcedid.instructions']}" />
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step1.contexttitle.label']}">
         <bbNG:checkboxElement isSelected="${params.contexttitle}" name="<%=Constants.TOOL_CONTEXT_TITLE%>" value="true" helpText="${bundle['page.system.data.step1.contexttitle.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step1.ext_copyof.label']}">
+        <bbNG:checkboxElement isSelected="${params.ext_copyof}" name="<%=Constants.TOOL_EXT_COPY_OF%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.data.step1.ext_copyof.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" title="${bundle['page.system.data.step2.title']}" instructions="${bundle['page.system.data.step2.instructions']}">
@@ -182,6 +206,13 @@
           <bbNG:selectOptionElement isSelected="${params.useridtypeB}" value="<%=Constants.DATA_BATCHUID%>" optionLabel="${bundle['page.system.data.step2.useridtype.batchuid']}" />
           <bbNG:selectOptionElement isSelected="${params.useridtypeN}" value="<%=Constants.DATA_USERNAME%>" optionLabel="${bundle['page.system.data.step2.useridtype.username']}" />
           <bbNG:selectOptionElement isSelected="${params.useridtypeS}" value="<%=Constants.DATA_STUDENTID%>" optionLabel="${bundle['page.system.data.step2.useridtype.studentid']}" />
+<%
+  if (B2Context.getIsVersion(9, 1, 13)) {
+%>
+          <bbNG:selectOptionElement isSelected="${params.useridtypeU}" value="<%=Constants.DATA_UUID%>" optionLabel="${bundle['page.system.data.step2.useridtype.uuid']}" />
+<%
+  }
+%>
         </bbNG:selectElement>
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.usersourcedid.label']}">
@@ -212,6 +243,9 @@
           </bbNG:dataElement>
           <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.ext_croles.label']}">
             <bbNG:checkboxElement isSelected="${params.ext_croles}" name="<%=Constants.TOOL_EXT_CROLES%>" value="true" helpText="${bundle['page.system.data.step2.ext_croles.instructions']}" />
+          </bbNG:dataElement>
+          <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step2.oroles.label']}">
+            <bbNG:checkboxElement isSelected="${params.oroles}" name="<%=Constants.TOOL_OBSERVER_ROLES%>" value="true" helpText="${bundle['page.system.data.step2.oroles.instructions']}" />
           </bbNG:dataElement>
         </bbNG:dataElement>
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.data.step2.encryption.label']}">
@@ -264,6 +298,9 @@
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step3.administrator.label']}">
         <bbNG:checkboxElement isSelected="${params.administrator}" name="<%=Constants.TOOL_ADMINISTRATOR%>" value="true" helpText="${bundle['page.system.data.step3.administrator.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.data.step3.guest.label']}">
+        <bbNG:checkboxElement isSelected="${params.guest}" name="<%=Constants.TOOL_GUEST%>" value="true" helpText="${bundle['page.system.data.step3.guest.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="${cancelUrl}" />

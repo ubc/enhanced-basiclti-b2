@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -77,7 +77,8 @@ public class Outcome implements Action {
           user = userdbloader.loadByUserName(userId);
         } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
           user = userdbloader.loadById(bbPm.generateId(User.DATA_TYPE, userId));
-//        } else if (isV90 && userIdType.equals(Constants.DATA_STUDENTID)) {
+        } else if (userIdType.equals(Constants.DATA_UUID)) {
+          user = userdbloader.loadByUuid(userId);
         } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
           SearchParameter sp = new SearchParameter(SearchKey.StudentId, userId, SearchOperator.Equals);
           UserSearch us = new UserSearch();

@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ import org.oscelot.blackboard.lti.services.Setting;
 public class ContextSetting extends Resource {
 
   private static final String ID = "ToolProxyBindingSettings";
-  private static final String TEMPLATE = "/lis/{context_type}/{context_id}/bindings/{vendor_code}/{product_code}/custom";
+  private static final String TEMPLATE = "/lis/{context_type}/{context_id}/bindings/{vendor_code}/{product_code}";
   private static List<String> FORMATS = new ArrayList<String>() {{
     add("application/vnd.ims.lti.v2.toolsettings+json");
     add("application/vnd.ims.lti.v2.toolsettings.simple+json");

@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ public class Profile extends Resource {
       profile.append("            \"default_value\":\"").append(Constants.LTI_LMS_SUPPLIER_NAME).append("\",\n");
       profile.append("            \"key\":\"product.vendor.name\"\n");
       profile.append("          },\n");
-      profile.append("          \"timestamp\":\"").append(Utils.formatCalendar(Calendar.getInstance(), "yyyy-MM-dd'T'HH:mmZ")).append("\"\n");
+      profile.append("          \"timestamp\":\"").append(Utils.formatCalendar(Calendar.getInstance(), Constants.ISO_DATE_FORMAT)).append("\"\n");
       profile.append("        }\n");
       profile.append("      }\n");
       profile.append("    },\n");

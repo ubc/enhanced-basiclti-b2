@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import blackboard.platform.plugin.ContentHandlerDbPersister;
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
 
-public class MenuItem {
+public final class MenuItem {
 
   private B2Context b2Context = null;
   private Tool tool = null;
@@ -45,20 +45,25 @@ public class MenuItem {
   private boolean toolChanged = false;
   private boolean chChanged = false;
 
-  public MenuItem(B2Context b2Context, Tool tool, String id, String menu) throws Exception {
+  public MenuItem(B2Context b2Context, Tool tool) {
 
     this.b2Context = b2Context;
     this.tool = tool;
     this.toolId = tool.getId();
     this.toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + this.toolId + ".";
-    if ((id != null) && (id.length() > 0)) {
-      this.contentHandler = this.getContentHandler();
-    }
-    if (this.contentHandler == null) {
-      this.contentHandler = this.createContentHandler();
-    }
-    if (menu != null) {
-      this.setMenu(menu);
+    this.contentHandler = this.getContentHandler();
+    if ((this.contentHandler != null) && (this.tool.getMenu() == null)) {
+      this.delete();
+    } else if ((this.contentHandler == null) && (this.tool.getMenu() != null)) {
+      this.createContentHandler(this.tool.getMenu());
+    } else if (this.contentHandler != null) {
+      if (!this.tool.getName().equals(this.getName())) {
+        this.setName(this.tool.getName());
+      }
+      if (!this.tool.getMenu().equals(this.getMenu())) {
+        this.setMenu(this.tool.getMenu());
+      }
+      this.setIsAvailable();
     }
     this.persist();
 
@@ -98,7 +103,7 @@ public class MenuItem {
   public String getMenu() {
 
     String menu = null;
-    if ((this.contentHandler != null) && !this.contentHandler.getTypes().isEmpty()) {
+    if ((this.contentHandler != null) && (this.contentHandler.getTypes() != null) && !this.contentHandler.getTypes().isEmpty()) {
       menu = this.contentHandler.getTypes().get(0).getActionType().toString();
     }
 
@@ -114,6 +119,10 @@ public class MenuItem {
           (this.contentHandler.getTypes().get(0).getActionType() != chType.getActionType())) {
         this.contentHandler.setTypes(Arrays.asList(new ContentHandlerType[] { chType }));
         this.chChanged = true;
+        if (!this.b2Context.getSetting(this.toolSettingPrefix + Constants.TOOL_MENU, "").equals(menu)) {
+          this.b2Context.setSetting(this.toolSettingPrefix + Constants.TOOL_MENU, menu);
+          this.toolChanged = true;
+        }
       }
     }
 
@@ -121,7 +130,7 @@ public class MenuItem {
 
   public String getMenuLabel() {
 
-    String label = "???";
+    String label = null;
     String menu = this.getMenu();
     if (menu != null) {
       label = b2Context.getResourceString("menu." + menu + ".label", menu);
@@ -142,10 +151,16 @@ public class MenuItem {
 
   }
 
+  public void setIsAvailable() {
+
+    setIsAvailable(this.tool.getIsEnabled().equals(Constants.DATA_TRUE));
+
+  }
+
   public void setIsAvailable(boolean isAvailable) {
 
     if ((this.contentHandler != null) && (this.contentHandler.isAvailable() != isAvailable)) {
-      this.contentHandler.isAvailable(isAvailable);
+      this.contentHandler.setAvailable(isAvailable);
       this.chChanged = true;
     }
 
@@ -187,7 +202,7 @@ public class MenuItem {
     ContentHandler ch = null;
     try {
       ContentHandlerDbLoader chLoader = ContentHandlerDbLoader.Default.getInstance();
-      ch = chLoader.loadByHandle(Constants.RESOURCE_HANDLE + "-" + this.toolId);
+      ch = chLoader.loadByHandle(Utils.getResourceHandle(this.b2Context, this.toolId));
     } catch (PersistenceException e) {
     }
 
@@ -195,13 +210,13 @@ public class MenuItem {
 
   }
 
-  private ContentHandler createContentHandler() {
+  private void createContentHandler(String menu) {
 
     PlugIn plugIn = PlugInManagerFactory.getInstance().getPlugIn(b2Context.getVendorId(), b2Context.getHandle());
     String query = "course_id=@X@course.pk_string@X@&content_id=@X@content.pk_string@X@";
     ContentHandler ch = new ContentHandler();
-    ch.setName(this.b2Context.getSetting(this.toolSettingPrefix + Constants.TOOL_NAME));
-    ch.setHandle(Constants.RESOURCE_HANDLE + "-" + this.toolId);
+    ch.setName(this.tool.getName());
+    ch.setHandle(Utils.getResourceHandle(this.b2Context, this.toolId));
     ch.canCopy(false);
     ch.setHttpActionCreate(this.b2Context.getPath() + "ch/create.jsp?" + Constants.TOOL_ID + "=" + this.toolId + "&" + query);
     ch.setHttpActionModify(this.b2Context.getPath() + "ch/modify.jsp?" + query);
@@ -209,12 +224,14 @@ public class MenuItem {
     ch.setHttpActionCpView(this.b2Context.getPath() + "tool.jsp?" + query);
     ch.setIconList(this.b2Context.getPath() + "icon.jsp?" + query);
     ch.setIconToolbar(this.b2Context.getPath() + "images/lti_s.gif");
-    ch.isAvailable(this.tool.getIsEnabled().equals(Constants.DATA_TRUE));
     ch.setPlugInId(plugIn.getId());
 
-    this.chChanged = true;
+    this.contentHandler = ch;
 
-    return ch;
+    this.setMenu(menu);
+    this.setIsAvailable();
+
+    this.chChanged = true;
 
   }
 
@@ -223,18 +240,6 @@ public class MenuItem {
     try {
       this.contentHandler.persist();
       this.chChanged = false;
-      String oldItemId = this.b2Context.getSetting(this.toolSettingPrefix + Constants.TOOL_MENUITEM, "");
-      String itemId = this.contentHandler.getId().toExternalString();
-      if (!oldItemId.equals(itemId)) {
-        this.b2Context.setSetting(this.toolSettingPrefix + Constants.TOOL_MENUITEM, itemId);
-        this.toolChanged = true;
-      }
-      String oldMenu = this.b2Context.getSetting(this.toolSettingPrefix + Constants.TOOL_MENU, "");
-      String menu = this.getMenu();
-      if (!oldMenu.equals(menu)) {
-        this.b2Context.setSetting(this.toolSettingPrefix + Constants.TOOL_MENU, menu);
-        this.toolChanged = true;
-      }
     } catch (PersistenceException e) {
     } catch (ValidationException e) {
     }

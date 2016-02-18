@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,15 +34,9 @@ import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
 public class LaunchMessage extends LtiMessage {
 
-  public LaunchMessage(B2Context b2Context, String toolId, Module module) {
+  public LaunchMessage(B2Context b2Context, Tool tool, Module module) {
 
-    this(b2Context, toolId, "", module);
-
-  }
-
-  public LaunchMessage(B2Context b2Context, String toolId, String id, Module module) {
-
-    super(b2Context, toolId, module);
+    super(b2Context, tool, module);
 
     this.props.setProperty("lti_message_type", Constants.LAUNCH_MESSAGE_TYPE);
 
@@ -53,28 +47,68 @@ public class LaunchMessage extends LtiMessage {
     String returnUrl = domain + b2Context.getPath() + "return.jsp";
 
     String courseId = b2Context.getRequestParameter("course_id", "");
+    String groupId = b2Context.getRequestParameter("group_id", "");
     String contentId = b2Context.getRequestParameter("content_id", "");
+    if (contentId.equals("@X@content.pk_string@X@")) {
+      contentId = "";
+    }
     StringBuilder query = new StringBuilder();
     if (this.course != null) {
-      query.append(Constants.TOOL_ID).append("=").append(toolId).append("&");
+      query.append(Constants.TOOL_ID).append("=").append(this.tool.getId()).append("&");
       query.append("course_id=").append(courseId).append("&");
+      if (groupId.length() > 0) {
+        query.append("group_id=").append(groupId).append("&");
+      }
       if (contentId.length() > 0) {
         query.append("content_id=").append(contentId).append("&");
       }
     }
     String list = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
     if (list.length() > 0) {
-      query.append(Constants.PAGE_PARAMETER_NAME).append("=").append(list);
+      query.append(Constants.PAGE_PARAMETER_NAME).append("=").append(list).append("&");
+    } else if (b2Context.getRequestParameter("mode", "").length() <= 0) {
+      query.append(Constants.PAGE_PARAMETER_NAME).append("=").append("tool").append("&");
+    }
+    String forceWindow = b2Context.getRequestParameter("w", "");
+    if (forceWindow.length() > 0) {
+      query.append("w").append("=").append(forceWindow).append("&");
     }
     String queryString = query.toString();
     if (queryString.endsWith("&")) {
       queryString = queryString.substring(0, queryString.length() - 1);
     }
-    this.props.setProperty("launch_presentation_return_url", returnUrl + "?" + queryString);
+    if (queryString.indexOf("group_id=@Xgroup.pk_string@X@") >= 0) {
+      queryString = queryString.replaceAll("group_id=@X@group.pk_string@X@&amp;", "");
+      queryString = queryString.replaceAll("group_id=@X@group.pk_string@X@&", "");
+      queryString = queryString.replaceAll("&amp;group_id=@X@group.pk_string@X@", "");
+      queryString = queryString.replaceAll("&group_id=@X@group.pk_string@X@", "");
+      queryString = queryString.replaceAll("group_id=@X@group.pk_string@X@", "");
+    }
+    if (queryString.indexOf("content_id=@X@content.pk_string@X@") >= 0) {
+      queryString = queryString.replaceAll("content_id=@X@content.pk_string@X@&amp;", "");
+      queryString = queryString.replaceAll("content_id=@X@content.pk_string@X@&", "");
+      queryString = queryString.replaceAll("&amp;content_id=@X@content.pk_string@X@", "");
+      queryString = queryString.replaceAll("&content_id=@X@content.pk_string@X@", "");
+      queryString = queryString.replaceAll("content_id=@X@content.pk_string@X@", "");
+    }
+    if (queryString.length() > 0) {
+      queryString += "&";
+    }
+    this.props.setProperty("launch_presentation_return_url", returnUrl + "?" + queryString + "globalNavigation=false");
 
     if (module != null) {
-      this.props.setProperty("launch_presentation_return_url", returnUrl + "?" + Constants.TOOL_MODULE + "=" + module.getId().toExternalString() + "&" +
-         Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, ""));
+      if (this.course == null) {
+        this.props.setProperty("launch_presentation_return_url", returnUrl + "?" +
+           Constants.TOOL_MODULE + "=" + module.getId().toExternalString() + "&" +
+           Constants.TOOL_ID + "=" + this.tool.getId() + "&" +
+           Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, ""));
+      } else {
+        this.props.setProperty("launch_presentation_return_url", returnUrl + "?" +
+           Constants.TOOL_MODULE + "=" + module.getId().toExternalString() + "&" +
+           Constants.TOOL_ID + "=" + this.tool.getId() + "&" +
+           "course_id=" + courseId + "&" +
+           Constants.COURSE_TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.COURSE_TAB_PARAMETER_NAME, ""));
+      }
       try {
         BbSession bbSession = BbSessionManagerServiceFactory.getInstance().getSession(b2Context.getRequest());
         String name = b2Context.getVendorId() + "-" + b2Context.getHandle() + "-" + module.getId().toExternalString() +
@@ -85,9 +119,10 @@ public class LaunchMessage extends LtiMessage {
         }
       } catch (PersistenceException e) {
       }
-    }
-    if (this.tool.getOpenIn().equals(Constants.DATA_WINDOW)) {
-      this.props.remove("launch_presentation_return_url");
+    } else if (this.course == null) {
+      this.props.setProperty("launch_presentation_return_url", this.props.getProperty("launch_presentation_return_url") +
+         "&" + Constants.TOOL_ID + "=" + this.tool.getId() +
+         "&" + Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, ""));
     }
 
     String extensionUrl = domain + b2Context.getPath() + "extension";
@@ -95,7 +130,7 @@ public class LaunchMessage extends LtiMessage {
     List<String> serviceData = new ArrayList<String>();
     serviceData.add(courseId);
     serviceData.add(contentId);
-    serviceData.add(this.tool.getId());
+    serviceData.add(this.tool.getId(true));
     String time = Integer.toString((int)(System.currentTimeMillis() / 1000));
     String hashId = Utils.getServiceId(serviceData, time, this.tool.getSendUUID());
     if ((this.course != null) && this.tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
@@ -103,9 +138,13 @@ public class LaunchMessage extends LtiMessage {
         this.props.setProperty("ext_ims_lis_basic_outcome_url", extensionUrl);
         this.props.setProperty("ext_ims_lis_resultvalue_sourcedids", "decimal,percentage,ratio,passfail,letteraf,letterafplus,freetext");
         this.props.setProperty("lis_outcome_service_url", serviceUrl);
-        boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
-        CourseMembership.Role role = Utils.getRole(b2Context.getContext().getCourseMembership().getRole(), systemRolesOnly);
-        boolean isStudent = role.equals(CourseMembership.Role.STUDENT);
+        boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+        CourseMembership.Role role = null;
+        boolean isStudent = false;
+        if (b2Context.getContext().getCourseMembership() != null) {
+          role = Utils.getRole(b2Context.getContext().getCourseMembership().getRole(), systemRolesOnly);
+          isStudent = role.equals(CourseMembership.Role.STUDENT);
+        }
         if (isStudent && (this.props.getProperty("user_id") != null) && (this.props.getProperty("user_id").length() > 0)) {
           String userHashId = Utils.getServiceId(serviceData, this.props.getProperty("user_id"), tool.getSendUUID());
           this.props.setProperty("lis_result_sourcedid", userHashId);
@@ -122,10 +161,13 @@ public class LaunchMessage extends LtiMessage {
       this.props.setProperty("ext_ims_lti_tool_setting_url", extensionUrl);
     }
 
-    if (id.length() <= 0) {
+    if ((tool.getPrefix() == null) || (tool.getPrefix().length() <= 0)) {
       customParameters += b2Context.getSetting(false, true, this.toolPrefix + Constants.TOOL_CUSTOM, "");
-    } else {
-      customParameters += b2Context.getSetting(false, true, Constants.TOOL_ID + "." + id + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_CUSTOM, "");
+    } else if (this.props.getProperty("resource_link_id") != null) {
+      this.props.setProperty("resource_link_id", this.props.getProperty("resource_link_id") + "_" + tool.getPrefix());
+      this.props.setProperty("resource_link_title", this.tool.getName());
+      this.props.remove("resource_link_description");
+      customParameters += b2Context.getSetting(false, true, tool.getPrefix() + "." + Constants.TOOL_PARAMETER_PREFIX + "." + tool.getId() + "." + Constants.TOOL_CUSTOM, "");
     }
     if (this.tool.getIsSystemTool() || this.tool.getByUrl()) {
       customParameters += "\r\n" + b2Context.getSetting(this.settingPrefix + Constants.TOOL_CUSTOM, "");
@@ -133,6 +175,10 @@ public class LaunchMessage extends LtiMessage {
       customParameters += "\r\n" + this.tool.getCustomParameters();
     }
     customParameters = customParameters.replaceAll("\\r\\n", "\n");
+    if (this.tool.getDoSendExtCopyOf()) {
+      customParameters += "\ncontext_id_history=$Context.id.history";
+      customParameters += "\nresource_link_id_history=$ResourceLink.id.history";
+    }
     if (this.tool.getHasService(Constants.RESOURCE_PROFILE).equals(Constants.DATA_TRUE)) {
       customParameters += "\ntc_profile_url=$ToolConsumerProfile.url";
     }
@@ -161,11 +207,11 @@ public class LaunchMessage extends LtiMessage {
 
 // Link-level settings
     b2Context.setIgnoreContentContext(false);
-    if (id.length() <= 0) {
+    if ((tool.getPrefix() == null) || (tool.getPrefix().length() <= 0)) {
       customParameters = b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + this.tool.getId() + "." + Constants.SERVICE_PARAMETER_PREFIX + ".setting.custom", "");
     } else {
       customParameters = b2Context.getSetting(false, true,
-         Constants.TOOL_ID + "." + id + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.SERVICE_PARAMETER_PREFIX + ".setting." + Constants.TOOL_CUSTOM, "");
+         Constants.TOOL_ID + "." + tool.getPrefix() + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.SERVICE_PARAMETER_PREFIX + ".setting." + Constants.TOOL_CUSTOM, "");
     }
     items = customParameters.split("\\n");
     addParameters(b2Context, items, true);
@@ -184,7 +230,7 @@ public class LaunchMessage extends LtiMessage {
         paramName = item[0];
         if (paramName.length()>0) {
           if (item.length > 1) {
-            value = Utils.parseParameter(b2Context, this.props, this.course, this.user, this.tool, item[1]);
+            value = Utils.parseParameter(b2Context, this.props, this.user, this.course, this.content, this.tool, item[1]);
           } else {
             value = "";
           }

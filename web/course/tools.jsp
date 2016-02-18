@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,12 +28,15 @@
                 org.oscelot.blackboard.lti.ToolList"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['plugin.name']}" entitlement="course.content.MODIFY">
+<bbNG:learningSystemPage title="${bundle['plugin.name']}" entitlement="course.control_panel.VIEW">
 <%
+  String formName = "page.course.tools";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   Utils.checkCourse(b2Context);
   ToolList toolList = new ToolList(b2Context);
-  boolean allowLocal = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean allowLocal = b2Context.getSetting(Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
 
   String instructions = "page.course.tools.instructions";
   if (allowLocal) {
@@ -56,15 +59,37 @@
   <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
 //<![CDATA[
-  function doAction(value) {
-    document.frmTools.action.value = value;
-    document.frmTools.submit();
+function doAction(value) {
+  document.frmTools.action.value = value;
+  document.frmTools.submit();
+}
+
+function doDelete() {
+  if (confirm('${bundle['page.system.tools.action.confirm']}')) {
+    doAction('delete');
   }
-  function doDelete() {
-    if (confirm('${bundle['page.system.tools.action.confirm']}')) {
-      doAction('delete');
-    }
-  }
+}
+
+var osc_lightbox;
+
+function osc_doConfig(id) {
+  var dimensions = document.viewport.getDimensions();
+  var width = Math.round(dimensions.width * 0.8);
+  var height = Math.round(dimensions.height * 0.8);
+  var el_if_win = document.getElementById('if_win');
+  var osc_lbParam = {
+    defaultDimensions : { w : width, h : height },
+    title : '${bundle['page.system.tools.action.config']}...',
+    openLink : el_if_win,
+    contents : '<iframe src="../config.jsp?course_id=${courseId}&amp;' + id + '" width="' + width + '" height="' + height + '" />',
+    closeOnBodyClick : false,
+    showCloseLink : true,
+    useDefaultDimensionsAsMinimumSize : true
+  };
+  osc_lbParam.ajax = false;
+  osc_lightbox = new lightbox.Lightbox(osc_lbParam);
+  osc_lightbox.open();
+}
 //]]>
 </script>
   </bbNG:jsBlock>
@@ -83,7 +108,7 @@
   }
 %>
   </bbNG:pageHeader>
-  <bbNG:form name="frmTools" method="post" action="toolsaction?${query}">
+  <bbNG:form name="frmTools" method="post" action="toolsaction?${query}" isSecure="true" nonceId="<%=formName%>">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
     <bbNG:inventoryList collection="<%=toolList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.lti.Tool"
        description="${bundle['page.system.tools.description']}" reorderable="true" reorderType="${bundle['page.system.tools.reordertype']}"
@@ -152,7 +177,7 @@
           <bbNG:contextMenuItem title="${xmlTitle}" url="../toolxml?${id}&${query}" target="_blank" id="xml" />
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
           <bbNG:contextMenuItem title="${bundle['page.system.tools.action.open']}" url="../tool.jsp?${id}${list}&${query}" target="${target}" id="open" />
-          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="${configUrl}" target="${target}" id="config" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.config']}" url="JavaScript: osc_doConfig('${id}');" id="config" />
         </bbNG:listContextMenu>
 <%
       } else {

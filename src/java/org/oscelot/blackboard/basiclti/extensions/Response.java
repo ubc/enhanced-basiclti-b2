@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ public class Response {
   public String toXML() {
 
     StringBuilder xml = new StringBuilder();
+    xml.append("<?xml version = \"1.0\" encoding = \"UTF-8\"?>\n");
     xml.append("<message_response>\n");
     xml.append("  <lti_message_type>").append(this.action).append("</lti_message_type>\n");
     xml.append("  <statusinfo>\n" );
@@ -85,7 +86,9 @@ public class Response {
       xml.append("    <codemajor>Failure</codemajor>\n");
       xml.append("    <severity>Error</severity>\n");
     }
-    xml.append("    <codeminor>").append(this.codeMinor).append("</codeminor>\n");
+    if (this.codeMinor != null) {
+      xml.append("    <codeminor>").append(this.codeMinor).append("</codeminor>\n");
+    }
     if (this.description != null) {
       xml.append("    <description>").append(this.description).append("</description>\n");
     }

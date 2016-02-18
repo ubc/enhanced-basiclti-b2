@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ public class ToolsAction extends HttpServlet {
   protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
     B2Context b2Context = new B2Context(request);
+    Utils.initNode(request.getSession(), b2Context);
     String action = b2Context.getRequestParameter(Constants.ACTION, "");
     String[] ids = request.getParameterValues(Constants.TOOL_ID);
     boolean isDomain = b2Context.getRequestParameter(Constants.DOMAIN_PARAMETER_PREFIX, "").length() > 0;
@@ -77,7 +78,8 @@ public class ToolsAction extends HttpServlet {
             b2Context.setSetting(toolSettingPrefix, Constants.DATA_TRUE);
             saveGlobal = true;
             if (!isDomain && !isService) {
-              doMenuAvailable(b2Context, toolId, true);
+              Tool tool = new Tool(b2Context, toolId);
+              tool.getMenuItem();
             }
           }
         } else if (action.equals(Constants.ACTION_DISABLE)) {
@@ -85,8 +87,9 @@ public class ToolsAction extends HttpServlet {
             b2Context.setSetting(toolSettingPrefix, Constants.DATA_FALSE);
             saveGlobal = true;
             if (!isDomain && !isService) {
-              doMenuAvailable(b2Context, toolId, false);
-              doCourseToolDelete(b2Context, toolId);
+              Tool tool = new Tool(b2Context, toolId);
+              tool.getMenuItem();
+              tool.getCourseTool();
             } else if (isDomain) {
               Utils.doCourseToolsDelete(b2Context, toolId);
             }
@@ -104,9 +107,30 @@ public class ToolsAction extends HttpServlet {
         } else if (action.equals(Constants.ACTION_DELETE)) {
           if (!isService) {
             Tool tool = new Tool(b2Context, toolId);
-            doMashupDelete(b2Context, tool);
-            doMenuDelete(tool);
-            doCourseToolDelete(b2Context, tool);
+            Mashup mashup = tool.getMashup();
+            if (mashup != null) {
+              mashup.delete();
+            }
+            MenuItem menuItem = tool.getMenuItem();
+            if (menuItem!= null) {
+              menuItem.delete();
+            }
+            UserTool userTool = tool.getUserTool();
+            if (userTool != null) {
+              userTool.delete();
+            }
+            SystemTool systemTool = tool.getSystemTool();
+            if (systemTool != null) {
+              systemTool.delete();
+            }
+            GroupTool groupTool = tool.getGroupTool();
+            if (groupTool != null) {
+              groupTool.delete();
+            }
+            CourseTool courseTool = tool.getCourseTool();
+            if (courseTool != null) {
+              courseTool.delete();
+            }
             toolList.deleteTool(toolId);
           }
           Map<String,String> settings = b2Context.getSettings(!isLocal, true);
@@ -138,13 +162,68 @@ public class ToolsAction extends HttpServlet {
             saveLocal = true;
           }
         } else if (action.equals(Constants.ACTION_TOOL)) {
-          doCourseToolAdd(b2Context, toolId);
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_COURSETOOL, Constants.DATA_TRUE);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getCourseTool();
+          saveGlobal = true;
         } else if (action.equals(Constants.ACTION_NOTOOL)) {
-          doCourseToolDelete(b2Context, toolId);
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_COURSETOOL, null);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getCourseTool();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_GROUPTOOL)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_GROUPTOOL, Constants.DATA_TRUE);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getGroupTool();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_NOGROUPTOOL)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_GROUPTOOL, null);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getGroupTool();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_USERTOOL)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_USERTOOL, Constants.DATA_TRUE);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getUserTool();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_NOUSERTOOL)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_USERTOOL, null);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getUserTool();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_SYSTEMTOOL)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_SYSTEMTOOL, Constants.DATA_TRUE);
+          Tool tool = new Tool(b2Context, toolId);
+          if (tool.getSystemTool().getId() != null) {
+            saveGlobal = true;
+          } else {
+            b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_SYSTEMTOOL, null);
+          }
+        } else if (action.equals(Constants.ACTION_NOSYSTEMTOOL)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_SYSTEMTOOL, null);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getSystemTool();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_MASHUP)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_MASHUP, Constants.DATA_TRUE);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getMashup();
+          saveGlobal = true;
+        } else if (action.equals(Constants.ACTION_NOMASHUP)) {
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_MASHUP, null);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getMashup();
+          saveGlobal = true;
         } else if (action.equals(Constants.ACTION_NOMENU)) {
-          doMenuItemMenu(b2Context, toolId, null);
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_MENU, null);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getMenuItem();
+          saveGlobal = true;
         } else if (Constants.MENU_NAME.contains(action)) {
-          doMenuItemMenu(b2Context, toolId, action);
+          b2Context.setSetting(toolSettingPrefix + "." + Constants.TOOL_MENU, action);
+          Tool tool = new Tool(b2Context, toolId);
+          tool.getMenuItem();
+          saveGlobal = true;
         }
       }
     }
@@ -157,73 +236,6 @@ public class ToolsAction extends HttpServlet {
     }
     redirectUrl = b2Context.setReceiptOptions(redirectUrl, b2Context.getResourceString("page.receipt.success"), null);
     response.sendRedirect(redirectUrl);
-  }
-
-  private void doMenuItemMenu(B2Context b2Context, String toolId, String menu) {
-
-    Tool tool = new Tool(b2Context, toolId);
-    MenuItem menuItem = tool.getMenuItem(menu != null);
-    if (menuItem != null) {
-      if (menu != null) {
-        menuItem.setMenu(menu);
-      } else {
-        menuItem.delete();
-      }
-      menuItem.persist();
-    }
-
-  }
-
-  private void doMenuAvailable(B2Context b2Context, String toolId, boolean isAvailable) {
-
-    Tool tool = new Tool(b2Context, toolId);
-    MenuItem menuItem = tool.getMenuItem();
-    if (menuItem != null) {
-      menuItem.setIsAvailable(isAvailable);
-      menuItem.persist();
-    }
-
-  }
-
-  private void doMashupDelete(B2Context b2Context, Tool tool) {
-
-    Utils.checkVTBEMashup(b2Context, false, tool.getId(), null, null);
-
-  }
-
-  private void doMenuDelete(Tool tool) {
-
-    MenuItem menuItem = tool.getMenuItem();
-    if (menuItem != null) {
-      menuItem.delete();
-    }
-
-  }
-
-  private void doCourseToolAdd(B2Context b2Context, String toolId) {
-
-    Tool tool = new Tool(b2Context, toolId);
-    CourseTool courseTool = tool.getCourseTool(true);
-    if (courseTool != null) {
-      courseTool.persist();
-    }
-
-  }
-
-  private void doCourseToolDelete(B2Context b2Context, String toolId) {
-
-    Tool tool = new Tool(b2Context, toolId);
-    doCourseToolDelete(b2Context, tool);
-
-  }
-
-  private void doCourseToolDelete(B2Context b2Context, Tool tool) {
-
-    CourseTool courseTool = tool.getCourseTool();
-    if (courseTool != null) {
-      courseTool.delete();
-    }
-
   }
 
   @Override

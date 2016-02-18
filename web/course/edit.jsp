@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,8 +29,11 @@
                 org.oscelot.blackboard.lti.Tool"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.course.edit.title']}" entitlement="course.content.MODIFY">
+<bbNG:learningSystemPage title="${bundle['page.course.edit.title']}" entitlement="course.control_panel.VIEW">
 <%
+  String formName = "page.course.edit";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, "");
   String toolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
@@ -149,7 +152,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.course.edit.title']}: ${toolName}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="${formUrl}" name="toolForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="${formUrl}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.course.edit.step2.title']}" instructions="${bundle['page.course.edit.step2.instructions']}">
       <bbNG:dataElement isRequired="true" label="${bundle['page.course.edit.step1.userid.label']}">

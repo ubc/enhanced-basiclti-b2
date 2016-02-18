@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -109,7 +109,9 @@ public class Response {
     xml.append("      <imsx_statusInfo>\n");
     xml.append("        <imsx_codeMajor>").append(this.codeMajor).append("</imsx_codeMajor>\n");
     xml.append("        <imsx_severity>status</imsx_severity>\n");
-    xml.append("        <imsx_description>").append(this.description).append("</imsx_description>\n");
+    if (this.description != null) {
+      xml.append("        <imsx_description>").append(this.description).append("</imsx_description>\n");
+    }
     xml.append("        <imsx_messageRefIdentifier>").append(this.providerRef).append("</imsx_messageRefIdentifier>\n");
     if (this.action.length() > 0) {
       xml.append("        <imsx_operationRefIdentifier>").append(this.action).append("</imsx_operationRefIdentifier>\n");

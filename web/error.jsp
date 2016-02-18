@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,17 +20,21 @@
 --%>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <%@page contentType="text/html" pageEncoding="UTF-8"
-        import="java.util.logging.Level,
-                java.util.logging.Logger,
+        import="java.io.PrintWriter,
                 com.spvsoftwareproducts.blackboard.utils.B2Context"
         isErrorPage="true" %>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <%
   B2Context b2Context = new B2Context(request);
-
-  Logger.getLogger(Object.class.getName()).log(Level.SEVERE, b2Context.getResourceString("plugin.name"), exception);
-
   pageContext.setAttribute("bundle", b2Context.getResourceStrings());
+
+  boolean isError = true;
+  String strException = "";
+  try {
+    strException = exception.getMessage();
+  } catch (Exception e) {
+    isError = false;
+  }
 %>
 <bbNG:genericPage>
   <bbNG:pageHeader>
@@ -40,4 +44,18 @@
 <p>
 ${bundle['page.error.introduction']}
 </p>
+<!--//--><![CDATA[//><!--
+<%
+  if (isError) {
+	  if (strException != null) {
+		  out.println(strException);
+		  B2Context.log(true, "error.jsp: " +  strException);
+	  }
+// now display a stack trace of the exception
+    PrintWriter pw = new PrintWriter(out);
+    exception.printStackTrace(pw);
+  }
+%>
+//--><!]]>
+  <bbNG:okButton />
 </bbNG:genericPage>

@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ public class ToolList {
       }
       boolean allowLocal = false;
       if (!this.isDomain) {
-        allowLocal = this.b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+        allowLocal = this.b2Context.getSetting(Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
       }
       this.toolList = new ArrayList<Tool>();
       for (Iterator<String> iter = this.toolIDs.listIterator(); iter.hasNext();) {
@@ -185,7 +185,9 @@ public class ToolList {
         }
         order = order.append(toolId);
       }
-      this.b2Context.setSetting(this.isSystem, true, this.getOrderPrefix() + ".order", order.toString());
+      if (!this.isSystem || (this.b2Context.getIsRootNode())) {
+        this.b2Context.setSetting(this.isSystem, true, this.getOrderPrefix() + ".order", order.toString());
+      }
       this.b2Context.persistSettings(this.isSystem, true);
     }
 

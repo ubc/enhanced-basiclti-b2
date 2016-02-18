@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ public class Memberships implements Action {
         if (b2Context.getContext().hasContentContext()) {
           contentId = b2Context.getContext().getContent().getId();
         }
-        boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+        boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
         boolean includeAll = !tool.getLimitMemberships().equals(Constants.DATA_TRUE);
         boolean includeGroups = actionName.equals(Constants.EXT_MEMBERSHIP_GROUPS_READ) &&
            tool.getGroupMemberships().equals(Constants.DATA_TRUE);
@@ -136,11 +136,11 @@ public class Memberships implements Action {
               }
               if (isAvailable) {
                 role = Utils.getRole(courseMembership.getRole(), systemRolesOnly);
-                roles = Utils.getCRoles(tool.getRole(role.getIdentifier()),
-                   tool.getSendAdministrator().equals(Constants.DATA_TRUE) && user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN));
+                roles = Utils.getCRoles(tool.getRole(role.getIdentifier())); //,
                 if (tool.getSendAdministrator().equals(Constants.DATA_TRUE)) {
                   roles = Utils.addAdminRole(roles, user);
                 }
+                roles = Utils.addPreviewRole(roles, user);
                 isAvailable = ((roles.indexOf(Constants.ROLE_INSTRUCTOR) >= 0) || isVisible);
               }
             }
@@ -158,9 +158,12 @@ public class Memberships implements Action {
               if (userIdType.equals(Constants.DATA_USERNAME)) {
                 userId = user.getUserName();
               } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
+                //userId = user.getId().toExternalString(); //original
                 userId = ((UserWrapper)user).getExternalId();
               } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
                 userId = user.getStudentId();
+              } else if (userIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
+                userId = user.getUuid();
               } else {
                 userId = user.getBatchUid();
               }
@@ -191,14 +194,14 @@ public class Memberships implements Action {
               if (tool.getSendUsername().equals(Constants.DATA_MANDATORY)) {
                 member = member.append("      <person_name_given>").append(user.getGivenName()).append("</person_name_given>\n");
                 member = member.append("      <person_name_family>").append(user.getFamilyName()).append("</person_name_family>\n");
-                member = member.append("      <person_name_full>").append(((UserWrapper)user).getFullName()).append("</person_name_full>\n");
-				// Original
+                // Original
                 /*String fullname = user.getGivenName();
                 if ((user.getMiddleName() != null) && (user.getMiddleName().length() > 0)) {
                   fullname += " " + user.getMiddleName();
                 }
                 fullname += " " + user.getFamilyName();
                 member = member.append("      <person_name_full>").append(fullname).append("</person_name_full>\n");*/
+                member = member.append("      <person_name_full>").append(((UserWrapper)user).getFullName()).append("</person_name_full>\n");
               }
               if (role.equals(Role.STUDENT) && tool.getSendUserId().equals(Constants.DATA_MANDATORY)) {
                 String resultSourcedid = Utils.getServiceId(serviceData, userId, tool.getSendUUID());

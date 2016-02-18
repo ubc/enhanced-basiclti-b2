@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG" %>
 <%
+  String formName = "page.module.admin";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
 
   ToolList toolList = new ToolList(b2Context);
@@ -42,7 +45,7 @@
   String cancelUrl = b2Context.getNavigationItem("admin_main").getHref();
   cancelUrl = "/webapps/portal/execute/manageModules";
 
-  boolean systemIRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean systemIRolesOnly = !b2Context.getSetting(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   List<PortalRole> iRoles = Utils.getInstitutionRoles(systemIRolesOnly);
 
   String errorResourceString = null;
@@ -122,7 +125,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar title="${bundle['page.module.admin.title']}" />
   </bbNG:pageHeader>
-  <bbNG:form action="admin.jsp" id="configForm" name="configForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="admin.jsp" id="configForm" name="configForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
     <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
       <bbNG:step hideNumber="false" id="stepOne" title="${bundle['page.module.admin.step1.title']}" instructions="${bundle['page.module.admin.step1.instructions']}">
         <bbNG:dataElement isRequired="true" label="${bundle['page.content.create.step1.tools.label']}">

@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,21 +25,66 @@
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <%@include file="lti_props.jsp" %>
+<bbNG:includedPage entitlement="system.generic.VIEW">
 <%
   if (params != null) {
     String target = "_self";
-    String full = b2Context.getRequestParameter("full", "");
-    if (full.equals(Constants.DATA_TRUE)) {
+    boolean full = b2Context.getRequestParameter("full", Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+    if (full) {
       target = "_parent";
     }
+    String url = b2Context.getServerUrl() + b2Context.getPath() + "window.jsp?w=true&" + request.getQueryString();
+    pageContext.setAttribute("bundle", b2Context.getResourceStrings());
+    pageContext.setAttribute("blocked", String.format(b2Context.getResourceString("page.blocked.frame"), tool.getName()));
+    pageContext.setAttribute("url", url);
+    pageContext.setAttribute("width", tool.getWindowWidth());
+    pageContext.setAttribute("height", tool.getWindowHeight());
 %>
 <html>
 <head>
 <script language="javascript" type="text/javascript">
-function doOnLoad() {
+//<![CDATA[
+function osc_unblock() {
+  var el = document.getElementById('id_blocked');
+  el.style.display = 'block';
+}
+
+function doPopup() {
+// Get viewport dimensions
+  var viewportwidth;
+  var viewportheight;
+  if (typeof window.innerWidth !== 'undefined') {
+    viewportwidth = window.innerWidth,
+    viewportheight = window.innerHeight
+  } else if (typeof document.documentElement !== 'undefined' &&
+             typeof document.documentElement.clientWidth !== 'undefined' &&
+             document.documentElement.clientWidth !== 0) {
+    viewportwidth = document.documentElement.clientWidth;
+    viewportheight = document.documentElement.clientHeight;
+  } else {
+    viewportwidth = document.getElementsByTagName('body')[0].clientWidth;
+    viewportheight = document.getElementsByTagName('body')[0].clientHeight;
+  }
+  var width = '${width}';
+  if (width.length <= 0) {
+    width = Math.round(viewportwidth * 0.8);
+  }
+  var height = '${height}';
+  if (height.length <= 0) {
+    height = Math.round(viewportheight * 0.8);
+  }
+  var w = window.open('${url}', '_blank', 'width=' + width + ',height=' + height + ',menubar=no,toolbar=no,scrollbars=yes,resizable=yes');
+  w.focus();
+  return false;
+}
+
+function osc_doOnLoad() {
+  window.setTimeout(osc_unblock, 10000);
   document.forms[0].submit();
 }
-window.onload=doOnLoad;
+
+window.onload=osc_doOnLoad;
+//]]>
 </script>
 </head>
 <body>
@@ -54,6 +99,10 @@ window.onload=doOnLoad;
 <%
     }
 %>
+<p id="id_blocked" style="display: none; color: red; font-weight: bold; margin-top: 1em; padding-top: 1em;">
+  ${blocked}<br /><br />
+  <input type="submit" value="${bundle['page.system.tools.action.open']}" onClick="JavaScript: return doPopup();" />
+</p>
 </form>
 <%
   } else {
@@ -62,3 +111,4 @@ window.onload=doOnLoad;
 %>
 </body>
 </html>
+</bbNG:includedPage>

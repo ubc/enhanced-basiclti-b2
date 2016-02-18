@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,15 +22,20 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.List,
                 java.util.ArrayList,
+                java.util.Map,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Constants,
                 org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.lti.ServiceList,
-                org.oscelot.blackboard.lti.services.Service"
+                org.oscelot.blackboard.lti.services.Service,
+                org.oscelot.blackboard.lti.resources.SettingDef"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.services.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.services";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   ServiceList serviceList = new ServiceList(b2Context, true);
   String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
@@ -78,7 +83,7 @@
       <bbNG:actionButton title="${bundle['page.system.tools.button.domains']}" url="domains.jsp?${query}" primary="false" />
     </bbNG:actionControlBar>
   </bbNG:pageHeader>
-  <bbNG:form name="frmServices" method="post" action="toolsaction?${query}">
+  <bbNG:form name="frmServices" method="post" action="toolsaction?${query}" isSecure="true" nonceId="<%=formName%>">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
     <input type="hidden" name="<%=Constants.SERVICE_PARAMETER_PREFIX%>" value="true" />
     <bbNG:inventoryList collection="<%=serviceList.getList()%>" objectVar="service" className="org.oscelot.blackboard.lti.services.Service"
@@ -139,7 +144,16 @@
       <bbNG:listElement isRowHeader="true" label="${bundle['page.system.tools.name.label']}" name="name">
         ${service.name}
 <%
-    if (!ServiceList.STANDARD_SERVICES.containsKey(service.getClassName())) {
+    pageContext.setAttribute("id", Constants.TOOL_ID + "=" + service.getId());
+    List<SettingDef> settings = service.getSettings();
+    if (ServiceList.STANDARD_SERVICES.containsKey(service.getClassName())) {
+%>
+        <bbNG:listContextMenu order="status,request">
+          <bbNG:contextMenuItem title="${statusTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
+          <bbNG:contextMenuItem title="${requestTitle}" url="JavaScript: doAction('${requestAction}');" id="request" />
+        </bbNG:listContextMenu>
+<%
+    } else if (settings.isEmpty()) {
 %>
         <bbNG:listContextMenu order="status,request,*separator*,delete">
           <bbNG:contextMenuItem title="${statusTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
@@ -149,9 +163,11 @@
 <%
     } else {
 %>
-        <bbNG:listContextMenu order="status,request">
+        <bbNG:listContextMenu order="status,request,*separator*,settings,*separator*,delete">
           <bbNG:contextMenuItem title="${statusTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
           <bbNG:contextMenuItem title="${requestTitle}" url="JavaScript: doAction('${requestAction}');" id="request" />
+          <bbNG:contextMenuItem title="${bundle['page.system.services.action.settings']}" url="servicesettings.jsp?${id}&${query}" id="settings" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
         </bbNG:listContextMenu>
 <%
     }

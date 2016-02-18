@@ -24,6 +24,10 @@
         <servlet-name>Services</servlet-name>
         <servlet-class>org.oscelot.blackboard.lti.services.Controller</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>LessonItem</servlet-name>
+        <servlet-class>org.oscelot.blackboard.lti.LessonItem</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>Reorder</servlet-name>
         <url-pattern>/system/reordertools</url-pattern>
@@ -59,6 +63,10 @@
     <servlet-mapping>
         <servlet-name>Services</servlet-name>
         <url-pattern>/lti/*</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>LessonItem</servlet-name>
+        <url-pattern>/lessonitem</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>

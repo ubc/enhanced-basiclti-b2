@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,19 +37,22 @@ import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.net.MalformedURLException;
 
+import org.apache.commons.lang.StringEscapeUtils;
+
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.commons.codec.binary.Base64;
 
 import java.text.SimpleDateFormat;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import org.apache.commons.codec.binary.Base64;
 
 import org.jdom.Document;
 import org.jdom.Element;
@@ -65,12 +68,9 @@ import blackboard.data.user.User;
 import blackboard.data.course.CourseMembership.Role;
 import blackboard.data.gradebook.Lineitem;
 import blackboard.data.gradebook.impl.OutcomeDefinition;
-import blackboard.data.navigation.NavigationItem;
-import blackboard.data.navigation.NavigationItem.NavigationType;
-import blackboard.data.navigation.NavigationItem.ComponentType;
-import blackboard.data.navigation.Mask;
 import blackboard.data.role.PortalRole;
 import blackboard.data.ValidationException;
+import blackboard.data.content.Content;
 import blackboard.platform.user.MyPlacesUtil;
 import blackboard.platform.user.MyPlacesUtil.AvatarType;
 import blackboard.platform.user.MyPlacesUtil.Setting;
@@ -82,13 +82,22 @@ import blackboard.persist.role.PortalRoleDbLoader;
 import blackboard.platform.security.CourseRole;
 import blackboard.platform.security.persist.CourseRoleDbLoader;
 import blackboard.platform.security.authentication.BbSecurityException;
+import blackboard.platform.security.NonceUtil;
 import blackboard.platform.persistence.PersistenceServiceFactory;
-import blackboard.persist.navigation.NavigationItemDbLoader;
-import blackboard.persist.navigation.NavigationItemDbPersister;
 import blackboard.persist.BbPersistenceManager;
 import blackboard.persist.Id;
+import blackboard.persist.user.UserDbLoader;
 import blackboard.persist.PersistenceException;
 import blackboard.persist.KeyNotFoundException;
+import blackboard.persist.course.CourseDbLoader;
+import blackboard.platform.context.Context;
+import blackboard.platform.context.ContextManagerFactory;
+import blackboard.platform.institutionalhierarchy.NodeInternal;
+import blackboard.platform.institutionalhierarchy.service.Node;
+import blackboard.platform.institutionalhierarchy.service.NodeAssociationManager;
+import blackboard.platform.institutionalhierarchy.service.NodeManager;
+import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
+import blackboard.platform.institutionalhierarchy.service.ObjectType;
 import blackboard.servlet.util.DatePickerUtil;
 import blackboard.portal.data.Module;
 import blackboard.portal.persist.ModuleDbLoader;
@@ -96,7 +105,6 @@ import blackboard.portal.persist.ModuleDbLoader;
 import org.oscelot.blackboard.lti.services.Service;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import javax.servlet.http.HttpSession;
 
 
 public class Utils {
@@ -216,7 +224,7 @@ public class Utils {
 // ---------------------------------------------------
 // Function to check hash value of the request body
 
-  public static boolean checkBodyHash(String header, String xml) {
+  public static boolean checkBodyHash(String header, String signaturemethod, String xml) {
 
     boolean ok = false;
 
@@ -231,7 +239,13 @@ public class Utils {
       }
     }
     if (value != null) {
-      ok = value.equals(getHash("", xml, "SHA-1", false));
+      String algorithm;
+      if (signaturemethod.equals("HMAC-SHA256")) {
+        algorithm = "SHA-256";
+      } else {
+        algorithm = "SHA-1";
+      }
+      ok = value.equals(getHash("", xml, algorithm, false));
     }
 
     return ok;
@@ -291,6 +305,28 @@ public class Utils {
 
 // ---------------------------------------------------
 // Function to get a course role with an option for replacing any admin-defined roles with
+
+  public static String getLTIUserId(String userIdType, User user) {
+
+    String userId;
+    if (userIdType.equals(Constants.DATA_USERNAME)) {
+      userId = user.getUserName();
+    } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
+      userId = user.getId().toExternalString();
+    } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
+      userId = user.getStudentId();
+    } else if (userIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
+      userId = user.getUuid();
+    } else {
+      userId = user.getBatchUid();
+    }
+
+    return userId;
+
+}
+
+// ---------------------------------------------------
+// Function to get a course role with an option for replacing any admin-defined roles with
 // a standard system role (either Instructor or Teaching Assistant).
 
   public static Role getRole(Role role, boolean systemRolesOnly) {
@@ -313,7 +349,7 @@ public class Utils {
 // ---------------------------------------------------
 // Function to get a comma separated list of the LTI role names
 
-  public static String getCRoles(String roleSetting, boolean isAdmin) {
+  public static String getCRoles(String roleSetting) { //, boolean isAdmin) {
 
     StringBuilder roles = new StringBuilder();
     if (roleSetting.contains("I")) {
@@ -330,9 +366,6 @@ public class Utils {
     }
     if (roleSetting.contains("M")) {
       roles.append(Constants.ROLE_MENTOR).append(',');
-    }
-    if (isAdmin) {
-      roles.append(Constants.ROLE_ADMINISTRATOR).append(',');
     }
     String rolesParameter = roles.toString();
     if (rolesParameter.endsWith(",")) {
@@ -352,7 +385,33 @@ public class Utils {
       if (roles.length() > 0) {
         roles += ",";
       }
-      roles += Constants.ROLE_SYSTEM_ADMINISTRATOR;
+      roles += Constants.ROLE_ADMINISTRATOR + "," + Constants.ROLE_SYSTEM_ADMINISTRATOR;
+    }
+
+    return roles;
+
+  }
+
+// ---------------------------------------------------
+// Function to get a comma separated list of the LTI role names
+
+  public static boolean isPreviewUser(User user) {
+
+    return (user.getUserName().endsWith("_previewuser") &&
+            (user.getFamilyName() != null) && user.getFamilyName().endsWith("_PreviewUser"));
+
+  }
+
+// ---------------------------------------------------
+// Function to get a comma separated list of the LTI role names
+
+  public static String addPreviewRole(String roles, User user) {
+
+    if (isPreviewUser(user)) {
+      if (roles.length() > 0) {
+        roles += ",";
+      }
+      roles += Constants.ROLE_TRANSIENT;
     }
 
     return roles;
@@ -396,7 +455,8 @@ public class Utils {
     HashSet<String> roles = new HashSet<String>();
     for (Iterator<PortalRole> iter = iRoles.iterator(); iter.hasNext();) {
       PortalRole role = iter.next();
-      String iRoleSetting = b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_IROLE + "." + role.getRoleID(), "");
+      String iRoleSetting = b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_IROLE + "." + role.getRoleID(),
+                                                 b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.DEFAULT_TOOL_ID + "." + Constants.TOOL_IROLE + "." + role.getRoleID(), ""));
       if (iRoleSetting.contains("F")) {
         roles.add(Constants.IROLE_FACULTY);
       }
@@ -485,18 +545,58 @@ public class Utils {
   }
 
 // ---------------------------------------------------
+// Function to get a list of users observed by the specified user.
+
+  public static List<User> getObservedUsers(Id userId, Id courseId) {
+
+    List<User> users;
+    try {
+      UserDbLoader userLoader = UserDbLoader.Default.getInstance();
+      users = userLoader.loadObservedByObserverId(userId);
+      if (!users.isEmpty() && (courseId != null)) {
+        List<User> enrolled = userLoader.loadByCourseId(courseId);
+        User user;
+        for (Iterator<User> iter = users.iterator(); iter.hasNext();) {
+          user = iter.next();
+          if (!enrolled.contains(user)) {
+            iter.remove();
+          }
+        }
+      }
+    } catch (PersistenceException e) {
+      users = new ArrayList<User>();
+    }
+
+    return users;
+
+  }
+
+// ---------------------------------------------------
 // Function to replace placeholders with user or course properties
+  public static String parseParameter(B2Context b2Context, Properties props, User user, Course course, Content content, Tool tool, String value) {
 
-  public static String parseParameter(B2Context b2Context, Properties props, Course course, User user, Tool tool, String value) {
-
-    if (value.indexOf("$User.") >= 0) {
+    if (value.contains("$User.")) {
       if (tool.getDoSendUserId()) {
         value = value.replaceAll("\\$User.id", user.getId().toExternalString());
         value = value.replaceAll("\\$User.username", user.getUserName());
-        value = value.replaceAll("\\$Person.studentId", user.getStudentId());
+        try {
+          if (value.contains("$User.image") && MyPlacesUtil.avatarsEnabled() && displayAvatar(user.getId()) && tool.getDoSendAvatar()) {
+            String image = MyPlacesUtil.getAvatarImage(user.getId());
+            if (image == null) {
+              image = "";
+            } else {
+              image = b2Context.getServerUrl() + image;
+            }
+            value = value.replaceAll("\\$User.image", image);
+          }
+        } catch (Exception e) {
+        }
+        if (value.contains("$User.org")) {
+          value = value.replaceAll("\\$User.org", getOrg(user.getId(), false));
+        }
       }
     }
-    if (value.indexOf("$Person.") >= 0) {
+    if (value.contains("$Person.")) {
       if (tool.getDoSendUserSourcedid()) {
         value = value.replaceAll("\\$Person.sourcedId", user.getBatchUid());
       }
@@ -522,13 +622,64 @@ public class Utils {
         value = value.replaceAll("\\$Person.phone.work", user.getBusinessPhone1());
         value = value.replaceAll("\\$Person.webaddress", user.getWebPage());
 //        value = value.replaceAll("\\$Person.sms", "");
+        value = value.replaceAll("\\$Person.studentId", user.getStudentId());  // Moved from $User section
       }
       if (tool.getDoSendEmail()) {
         value = value.replaceAll("\\$Person.email.primary", user.getEmailAddress());
         value = value.replaceAll("\\$Person.email.personal", user.getEmailAddress());
       }
     }
-    if (value.indexOf("$CourseSection.") >= 0) {
+    String oldContextId = null;
+    if ((course != null) && value.contains("$Context.")) {
+      if (tool.getDoSendContextId()) {
+        if (value.contains("$Context.id.history")) {
+          oldContextId = getOldContextId(b2Context, tool.getContextIdType());
+          value = value.replaceAll("\\$Context.id.history", oldContextId);
+        }
+        if (props.containsKey("context_id")) {
+          value = value.replaceAll("\\$Context.id", props.getProperty("context_id"));
+        }
+        if (value.contains("$Context.org")) {
+          value = value.replaceAll("\\$Context.org", getOrg(course.getId(), true));
+        }
+      }
+    }
+    if (value.contains("$ResourceLink.")) {
+      if (props.containsKey("resource_link_id")) {
+        if (value.contains("$ResourceLink.id.history")) {
+          String contentId = b2Context.getRequestParameter("content_id", "");
+          if (contentId.equals("@X@content.pk_string@X@")) {
+            contentId = "";
+          }
+          if (oldContextId == null) {
+            oldContextId = getOldContextId(b2Context, tool.getContextIdType());
+          }
+          String idString = tool.getPrefix();
+          String oldResourceId = getOldResourceId(b2Context, oldContextId, contentId);
+          if ((idString != null) && (idString.length() > 0) && (oldResourceId.length() > 0)) {
+            String[] resources = oldResourceId.split(",");
+            StringBuilder ids = new StringBuilder();
+            for (int i = 0; i < resources.length; i++) {
+              ids.append(",").append(Utils.urlEncode(Utils.urlDecode(resources[i]) + "_" + idString));
+            }
+            oldResourceId = ids.substring(1);
+          }
+          value = value.replaceAll("\\$ResourceLink.id.history", oldResourceId);
+        }
+        value = value.replaceAll("\\$ResourceLink.id", props.getProperty("resource_link_id"));
+      }
+      if (props.containsKey("resource_link_title")) {
+        value = value.replaceAll("\\$ResourceLink.title", props.getProperty("resource_link_title"));
+      }
+      if (props.containsKey("resource_link_description")) {
+        value = value.replaceAll("\\$ResourceLink.description", props.getProperty("resource_link_description"));
+      }
+      if (content != null) {
+        value = value.replaceAll("\\$ResourceLink.timeFrame.begin", formatCalendar(content.getStartDate(), Constants.ISO_DATE_FORMAT));
+        value = value.replaceAll("\\$ResourceLink.timeFrame.end", formatCalendar(content.getEndDate(), Constants.ISO_DATE_FORMAT));
+      }
+    }
+    if ((course != null) && value.contains("$CourseSection.")) {
       if (tool.getDoSendContextSourcedid()) {
         value = value.replaceAll("\\$CourseSection.sourcedId", course.getBatchUid());
         value = value.replaceAll("\\$CourseSection.dataSource", course.getDataSourceId().toExternalString());
@@ -542,17 +693,20 @@ public class Utils {
 //      value = value.replaceAll("\\$CourseSection.credits", "");
 //      value = value.replaceAll("\\$CourseSection.maxNumberofStudents", "");
 //      value = value.replaceAll("\\$CourseSection.numberofStudents", "");
-//      value = value.replaceAll("\\$CourseSection.dept", "");
+      value = value.replaceAll("\\$CourseSection.dept", getPrimaryNode(course.getId(), true));
       value = value.replaceAll("\\$CourseSection.timeFrame.begin",
-         formatCalendar(course.getStartDate(), Constants.DATE_FORMAT));
+         formatCalendar(course.getStartDate(), Constants.ISO_DATE_FORMAT));
       value = value.replaceAll("\\$CourseSection.timeFrame.end",
-         formatCalendar(course.getEndDate(), Constants.DATE_FORMAT));
+         formatCalendar(course.getEndDate(), Constants.ISO_DATE_FORMAT));
 //      value = value.replaceAll("\\$CourseSection.enrollControl.accept", "");
 //      value = value.replaceAll("\\$CourseSection.enrollControl.allowed", "");
     }
-    if (value.indexOf("$Result.") >= 0) {
+    if (value.contains("$Result.")) {
       if (props.containsKey("lis_result_sourcedid")) {
         value = value.replaceAll("\\$Result.sourcedId", props.getProperty("lis_result_sourcedid"));
+      }
+      if (props.containsKey("lis_outcome_service_url")) {
+        value = value.replaceAll("\\$Result.pointsPossible", tool.getOutcomesPointsPossible());
       }
     }
     ServiceList serviceList = new ServiceList(b2Context, false);
@@ -809,6 +963,7 @@ public class Utils {
     if (str != null ) {
       str = str.replaceAll("\\<.*?>","").trim();
     }
+    str = StringEscapeUtils.unescapeHtml(str);
 
     return str;
 
@@ -852,6 +1007,7 @@ public class Utils {
     String query = "&" + nullToEmpty(request.getQueryString());
     query = query.replaceAll("&" + Constants.ACTION + "=[^&]*", "");
     query = query.replaceAll("&" + Constants.TOOL_ID + "=[^&]*", "");
+    query = query.replaceAll("&" + Constants.NODE_PARAMETER + "=[^&]*", "");
     query = query.replaceAll("&" + InlineReceiptUtil.SIMPLE_STRING_KEY + "[A-Za-z0-9]*=[^&]*", "");
     query = query.replaceAll("&" + InlineReceiptUtil.SIMPLE_ERROR_KEY + "[A-Za-z0-9]*=[^&]*", "");
     query = query.replaceAll("&" + Constants.LTI_MESSAGE + "=[^&]*", "");
@@ -890,6 +1046,12 @@ public class Utils {
 
   public static String readUrlAsString(B2Context b2Context, String urlString) {
 
+    return readUrlAsString(b2Context, urlString, new HashMap<String,String>());
+
+  }
+
+  public static String readUrlAsString(B2Context b2Context, String urlString, Map<String,String> headers) {
+
     String str = "";
     int timeout;
     try {
@@ -900,6 +1062,11 @@ public class Utils {
     GetMethod fileGet = null;
     try {
       fileGet = new GetMethod(urlString);
+      Map.Entry<String,String> entry;
+      for (Iterator<Map.Entry<String,String>> iter = headers.entrySet().iterator(); iter.hasNext();) {
+        entry = iter.next();
+        fileGet.addRequestHeader(entry.getKey(), entry.getValue());
+      }
       HttpClient client = new HttpClient();
       client.getHttpConnectionManager().getParams().setConnectionTimeout(timeout);
       int resp = client.executeMethod(fileGet);
@@ -955,45 +1122,93 @@ public class Utils {
   public static Tool urlToDomain(B2Context b2Context, String urlString) {
 
     Tool domain = null;
-    urlString = Utils.urlToDomainName(urlString);
-    if (urlString.length() > 0) {
+    String domainName = Utils.urlToDomainName(urlString);
+    if (domainName.length() > 0) {
       try {
-        if (urlString.indexOf("://") < 0) {
-          urlString = "http://" + urlString;
+        if (domainName.indexOf("://") < 0) {
+          domainName = "http://" + domainName;
         }
-        URL url = new URL(urlString);
+        URL url = new URL(domainName);
         String urlHost = url.getHost();
         String urlPath = url.getPath();
         String domainHost = "";
         String domainPath = "";
         ToolList domainList = new ToolList(b2Context, true, true);
         List<Tool> domains = domainList.getList();
+        Tool aDomain;
         for (Iterator<Tool> iter = domains.iterator(); iter.hasNext();) {
-          Tool tool = iter.next();
-          String[] name = tool.getName().split("/", 2);
-          if (urlHost.endsWith(name[0])) {
-            if ((name[0].length() > domainHost.length()) &&
-                ((name.length <= 1) || urlPath.startsWith("/" + name[1]))) {
-              domainHost = name[0];
-              if (name.length > 1) {
+          aDomain = iter.next();
+          if (!isRegExp(aDomain.getName())) {
+            String[] name = aDomain.getName().split("/", 2);
+            if (urlHost.endsWith(name[0])) {
+              if ((name[0].length() > domainHost.length()) &&
+                  ((name.length <= 1) || urlPath.startsWith("/" + name[1]))) {
+                domainHost = name[0];
+                if (name.length > 1) {
+                  domainPath = name[1];
+                } else {
+                  domainPath = "";
+                }
+                domain = aDomain;
+              } else if (name[0].equals(domainHost) && (name.length > 1) && urlPath.startsWith("/" + name[1]) &&
+                 (name[1].length() > domainPath.length())) {
                 domainPath = name[1];
-              } else {
-                domainPath = "";
+                domain = aDomain;
               }
-              domain = tool;
-            } else if (name[0].equals(domainHost) && (name.length > 1) && urlPath.startsWith("/" + name[1]) &&
-               (name[1].length() > domainPath.length())) {
-              domainPath = name[1];
-              domain = tool;
             }
+          } else if (urlString.matches(aDomain.getName())) {  // RegExp
+            domain = aDomain;
+            break;
           }
         }
       } catch (MalformedURLException e) {
-        urlString = "";
       }
     }
 
     return domain;
+
+  }
+
+// ---------------------------------------------------
+// Function to get a Tool definition
+
+  public static Tool getTool(B2Context b2Context, String toolId) {
+
+    Tool tool = new Tool(b2Context, toolId);
+    if ((tool.getName().length() <= 0) && (tool.getUrl().length() <= 0)) {
+      tool = new Tool(b2Context, "", Constants.TOOL_ID + "." + toolId);
+    }
+    if ((tool.getName().length() <= 0) && (tool.getUrl().length() <= 0)) {
+      String id = b2Context.getSetting(false, true, Constants.TOOL_ID + "." + toolId + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, "");
+      if (id.length() > 0) {
+        tool = new Tool(b2Context, id, Constants.TOOL_ID + "." + toolId);
+      } else if (b2Context.getContext().hasContentContext()) {  // check parent
+        String contentId = b2Context.getContext().getContent().getId().toExternalString();
+        B2Context parentContext = new B2Context(null);
+        parentContext.setContext(initContext(b2Context.getContext().getCourse().getId().toExternalString(),
+           b2Context.getContext().getContent().getParentId().toExternalString()));
+        id = parentContext.getSetting(false, true, Constants.TOOL_ID + "." + toolId + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, "");
+        if (id.length() > 0) {
+          Map<String,String> settings = parentContext.getSettings(false, true);
+          Map.Entry<String,String> setting;
+          String prefix = Constants.TOOL_ID + "." + toolId + "." + Constants.TOOL_PARAMETER_PREFIX + ".";
+          for (Iterator<Map.Entry<String,String>> iter=settings.entrySet().iterator(); iter.hasNext();) {
+            setting = iter.next();
+            if (setting.getKey().startsWith(prefix)) {
+              b2Context.setSetting(false, true, setting.getKey(), setting.getValue());
+              parentContext.setSetting(false, true, setting.getKey(), null);
+            }
+          }
+          parentContext.persistSettings(false, true);
+          settings = b2Context.getSettings(false, true);
+          b2Context.setContext(initContext(b2Context.getContext().getCourse().getId().toExternalString(), contentId));
+          b2Context.persistSettings(false, true, null, settings);
+          tool = new Tool(b2Context, id, Constants.TOOL_ID + "." + toolId);
+        }
+      }
+    }
+
+    return tool;
 
   }
 
@@ -1028,6 +1243,61 @@ public class Utils {
     } while (true);
 
     return name;
+
+  }
+
+// ---------------------------------------------------
+// Function to generate a specific context
+  public static Context initContext(String course, String content) {
+
+    Id courseId = Id.UNSET_ID;
+    Id contentId = Id.UNSET_ID;
+    try {
+      if (course != null) {
+        courseId = Id.generateId(Course.DATA_TYPE, course);
+      }
+      if (content != null) {
+        contentId = Id.generateId(Content.DATA_TYPE, content);
+      }
+    } catch (PersistenceException e) {
+    }
+
+    return initContext(courseId, contentId);
+
+  }
+
+// ---------------------------------------------------
+// Function to generate a specific context
+  public static Context initContext(Id courseId, Id contentId) {
+
+    Context ctx = ContextManagerFactory.getInstance().getContext();
+    Id vhId = Id.UNSET_ID;
+    try {
+      vhId = ctx.getVirtualHost().getId();
+    } catch (PersistenceException e) {
+    }
+
+    return ContextManagerFactory.getInstance().setContext(vhId, courseId, Id.UNSET_ID,
+       Id.UNSET_ID, contentId);
+
+  }
+
+// ---------------------------------------------------
+// Function to convert a Content-Item display target to an openin setting value
+  public static String displayTargetToOpenin(String displayTarget) {
+
+    String openin = null; //Constants.DATA_FRAME;
+    if (displayTarget.equals("window")) {
+      openin = Constants.DATA_WINDOW;
+    } else if (displayTarget.equals("iframe")) {
+      openin = Constants.DATA_IFRAME;
+    } else if (displayTarget.equals("popup")) {
+      openin = Constants.DATA_POPUP;
+    } else if (displayTarget.equals("overlay")) {
+      openin = Constants.DATA_OVERLAY;
+    }
+
+    return openin;
 
   }
 
@@ -1130,6 +1400,7 @@ public class Utils {
     extensionProps.put(Constants.TOOL_URL, "");
     extensionProps.put(Constants.TOOL_GUID, "");
     extensionProps.put(Constants.TOOL_SECRET, "");
+    extensionProps.put(Constants.TOOL_SIGNATURE_METHOD, Constants.DATA_SIGNATURE_METHOD_SHA1 + Constants.DATA_SIGNATURE_METHOD_SHA256);
     extensionProps.put(Constants.TOOL_USERID, Constants.DATA_OPTIONAL);
     extensionProps.put(Constants.TOOL_USERNAME, Constants.DATA_OPTIONAL);
     extensionProps.put(Constants.TOOL_EMAIL, Constants.DATA_OPTIONAL);
@@ -1147,21 +1418,22 @@ public class Utils {
     extensionProps.put(Constants.TOOL_EXT_SETTING, Constants.DATA_OPTIONAL);
     extensionProps.put(Constants.TOOL_CSS, "");
     extensionProps.put(Constants.TOOL_ICON, "");
+    extensionProps.put(Constants.TOOL_ICON_DISABLED, "");
 
     StringBuilder roles = new StringBuilder();
     if (!isContentItem) {
       extensionProps.put(Constants.TOOL_CONTEXT_ID, Constants.DATA_TRUE);
-      extensionProps.put(Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID + Constants.DATA_COURSEID + Constants.DATA_PRIMARYKEY);
+      extensionProps.put(Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID + Constants.DATA_COURSEID + Constants.DATA_PRIMARYKEY + Constants.DATA_UUID);
       extensionProps.put(Constants.TOOL_CONTEXT_SOURCEDID, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_CONTEXT_TITLE, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_AVATAR, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_ROLES, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_EXT_IROLES, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_EXT_CROLES, Constants.DATA_TRUE);
-      extensionProps.put(Constants.TOOL_USERIDTYPE, Constants.DATA_BATCHUID + Constants.DATA_USERNAME + Constants.DATA_STUDENTID + Constants.DATA_PRIMARYKEY);
+      extensionProps.put(Constants.TOOL_USERIDTYPE, Constants.DATA_BATCHUID + Constants.DATA_USERNAME + Constants.DATA_STUDENTID + Constants.DATA_PRIMARYKEY + Constants.DATA_UUID);
       extensionProps.put(Constants.TOOL_USER_SOURCEDID, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_OPEN_IN, Constants.DATA_FRAME + Constants.DATA_FRAME_NO_BREADCRUMBS +
-         Constants.DATA_WINDOW + Constants.DATA_IFRAME);
+         Constants.DATA_WINDOW + Constants.DATA_IFRAME + Constants.DATA_POPUP + Constants.DATA_OVERLAY);
       extensionProps.put(Constants.TOOL_WINDOW_NAME, null);
       extensionProps.put(Constants.TOOL_SPLASH, Constants.DATA_TRUE);
       extensionProps.put(Constants.TOOL_SPLASHTEXT, "");
@@ -1173,7 +1445,9 @@ public class Utils {
         roles.append(cRole.getIdentifier());
       }
       if (isSystemTool) {
+        extensionProps.put(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONTENT_ITEM, Constants.DATA_TRUE);
         extensionProps.put(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG, Constants.DATA_TRUE);
+        extensionProps.put(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_DASHBOARD, Constants.DATA_TRUE);
         ServiceList services = new ServiceList(b2Context, true);
         Service service;
         for (Iterator<Service> iter = services.getList().iterator(); iter.hasNext();) {
@@ -1255,87 +1529,6 @@ public class Utils {
   }
 
 // ---------------------------------------------------
-// Function to add the VTBE mashup option (to allow Learn 9.0 to accept the manifest file)
-
-  private static void addVTBEMashup(B2Context b2Context, String toolId, String name, String description) {
-
-    String appName = b2Context.getVendorId() + "-" + b2Context.getHandle();
-    NavigationItem navItem = new NavigationItem();
-
-    String url;
-    String suffix = toolId;
-    if (toolId.length() <= 0) {
-      url = "vtbe/link.jsp?course_id=@X@course.pk_string@X@&amp;content_id=@X@content.pk_string@X@";
-    } else {
-      url = "vtbe/item.jsp?course_id=@X@course.pk_string@X@&content_id=@X@content.pk_string@X@&tool=" + toolId;
-      suffix = "-" + suffix;
-    }
-    navItem.setInternalHandle(appName + "-nav-vtbe" + suffix);
-    navItem.setLabel(name);
-    navItem.setDescription(description);
-    navItem.setHref(b2Context.getPath() + url);
-    navItem.setSrc(null);
-    navItem.setApplication(appName);
-    navItem.setFamily("0");
-    navItem.setSubGroup("vtbe_mashup");
-    navItem.setNavigationType(NavigationType.COURSE);
-    navItem.setComponentType(ComponentType.MENU_ITEM);
-    navItem.setIsEnabledMask(new Mask(3));
-    navItem.setEntitlementUid("system.generic.VIEW");
-
-    try {
-      navItem.persist();
-    } catch (ValidationException e) {
-    } catch (PersistenceException e) {
-    }
-
-  }
-
-// ---------------------------------------------------
-// Function to check that the VTBE mashup tool is enabled/disabled as per the configuration setting
-  public static boolean checkVTBEMashup(B2Context b2Context, boolean enabled) {
-
-    return checkVTBEMashup(b2Context, enabled, "", b2Context.getResourceString("plugin.vtbe.name"),
-       b2Context.getResourceString("plugin.vtbe.description"));
-
-  }
-
-  public static boolean checkVTBEMashup(B2Context b2Context, boolean enabled, String toolId, String name, String description) {
-
-    boolean ok = true;
-    Id id = Id.UNSET_ID;
-    String suffix = toolId;
-    if (toolId.length() > 0) {
-      suffix = "-" + suffix;
-    }
-    String handle = b2Context.getVendorId() + "-" + b2Context.getHandle() + "-nav-vtbe" + suffix;
-    try {
-      NavigationItemDbLoader navLoader = NavigationItemDbLoader.Default.getInstance();
-      NavigationItem navItem = navLoader.loadByInternalHandle(handle);
-      id = navItem.getId();
-    } catch (KeyNotFoundException e) {
-    } catch (PersistenceException e) {
-      ok = false;
-    }
-    if (ok && (enabled ^ id.getIsSet())) {
-      if (!id.getIsSet()) {
-        addVTBEMashup(b2Context, toolId, name, description);
-      } else {
-        try {
-          NavigationItemDbPersister navPersister = NavigationItemDbPersister.Default.getInstance();
-          navPersister.deleteById(id);
-        } catch (KeyNotFoundException e) {
-        } catch (PersistenceException e) {
-          ok = false;
-        }
-      }
-    }
-
-    return ok;
-
-  }
-
-// ---------------------------------------------------
 // Function to remove course tools option for any tools which have become disabled because a domain is denied
 
   public static void doCourseToolsDelete(B2Context b2Context, String domainId) {
@@ -1376,13 +1569,167 @@ public class Utils {
 
     boolean usingSystem = false;
     boolean usingUploaded = false;
-    Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
-    usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
-    if (!usingSystem) {
-      usingUploaded = MyPlacesUtil.getAvatarType().equals(AvatarType.user) && (userData.get(Setting.AVATAR_SHOW_USER.getKey())).equalsIgnoreCase("true");
+    try {
+      Map<String,String> userData = MyPlacesUtil.getMyPlacesUserData(userId);
+      usingSystem = MyPlacesUtil.getAvatarType().equals(AvatarType.system) && (userData.get(Setting.AVATAR_SHOW_SYSDEF.getKey())).equalsIgnoreCase("true");
+      if (!usingSystem) {
+        usingUploaded = MyPlacesUtil.getAvatarType().equals(AvatarType.user) && (userData.get(Setting.AVATAR_SHOW_USER.getKey())).equalsIgnoreCase("true");
+      }
+    } catch (Exception e) {  // PersistenceException may be thrown by older versions of Learn 9
     }
 
     return usingSystem || usingUploaded;
+
+  }
+
+  public static String getResourceHandle(B2Context b2Context, String toolId) {
+
+    String handle = "resource/x-" + b2Context.getVendorId().toLowerCase() + "-" + b2Context.getHandle().toLowerCase();
+
+    if ((toolId != null) && (toolId.length() > 0)) {
+      handle += "-" + toolId;
+    }
+
+    return handle;
+
+  }
+
+  public static String getOrg(Id id, boolean isCourse) {
+
+    String org = "";
+    StringBuilder orgs = new StringBuilder(",");
+    if (B2Context.getIsVersion(9, 1, 8)) {
+      NodeAssociationManager nodeAssociationManager = NodeManagerFactory.getAssociationManager();
+      NodeManager nodeManager = NodeManagerFactory.getHierarchyManager();
+      try {
+        List<Node> nodes;
+        if (B2Context.getIsVersion(9, 1, 10)) {
+          ObjectType type;
+          if (isCourse) {
+            type = ObjectType.Course;
+          } else {
+            type = ObjectType.User;
+          }
+          nodes = nodeAssociationManager.loadAssociatedNodes(id, type);
+        } else if (isCourse) {
+          nodes = nodeAssociationManager.loadCourseAssociatedNodes(id);
+        } else {
+          nodes = nodeAssociationManager.loadUserAssociatedNodes(id);
+        }
+        Node node;
+        Id nodeId;
+        for (Iterator<Node> iter = nodes.iterator(); iter.hasNext();) {
+          node = iter.next();
+          do {
+            if (orgs.indexOf("," + node.getName() + ",") < 0) {
+              orgs.append("dc=").append(node.getName()).append(",");
+            }
+            nodeId = node.getParentId();
+            if (nodeId != null) {
+              node = nodeManager.loadNodeById(nodeId);
+            }
+          } while (nodeId != null);
+        }
+      } catch (PersistenceException ex) {
+        Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
+      }
+      if (orgs.length() > 1) {
+        org = orgs.substring(1, orgs.length() - 1);
+      }
+    }
+
+    return org;
+
+  }
+
+  public static String getPrimaryNode(Id id, boolean isCourse) {
+
+    String primary = "";
+    if (B2Context.getIsVersion(9, 1, 8)) {
+      NodeAssociationManager nodeAssociationManager = NodeManagerFactory.getAssociationManager();
+      NodeManager nodeManager = NodeManagerFactory.getHierarchyManager();
+      try {
+        Id nodeId = null;
+        if (B2Context.getIsVersion(9, 1, 10)) {
+          ObjectType type;
+          if (isCourse) {
+            type = ObjectType.Course;
+          } else {
+            type = ObjectType.User;
+          }
+          nodeId = nodeAssociationManager.loadPrimaryNodeId(id, type);
+        } else if (isCourse) {
+          nodeId = nodeAssociationManager.loadCoursePrimaryNodeId(id);
+        }
+        if (nodeId != null) {
+          Node node = nodeManager.loadNodeById(nodeId);
+          primary = node.getName();
+        }
+      } catch (PersistenceException ex) {
+        Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
+      }
+    }
+
+    return primary;
+
+  }
+
+  public static String getOldContextId(B2Context b2Context, String contextIdType) {
+
+    B2Context courseContext = new B2Context(b2Context.getRequest());
+    courseContext.setIgnoreContentContext(true);
+
+    String contextIds = "";
+    String old = courseContext.getSetting(false, true, "x_courseid", "");
+    if ((old.length() > 0) && !contextIdType.equals(Constants.DATA_COURSEID)) {
+      StringBuilder contexts = new StringBuilder();
+      try {
+        BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
+        CourseDbLoader courseLoader = (CourseDbLoader)bbPm.getLoader(CourseDbLoader.TYPE);
+        String[] courses = old.split(",");
+        Course course;
+        Id courseId;
+        String contextId;
+        for (int i = 0; i < courses.length; i++) {
+          courseId = Id.generateId(Course.DATA_TYPE, courses[i]);
+          course = courseLoader.loadById(courseId);
+          if (contextIdType.equals(Constants.DATA_PRIMARYKEY)) {
+            contextId = course.getId().toExternalString();
+          } else if (contextIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
+            contextId = course.getUuid();
+          } else {
+            contextId = course.getBatchUid();
+          }
+          contexts.append(",").append(urlEncode(contextId));
+        }
+        contextIds = contexts.substring(1);
+      } catch (PersistenceException ex) {
+        Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
+      }
+    }
+
+    return contextIds;
+
+  }
+
+  public static String getOldResourceId(B2Context b2Context, String contextId, String contentId) {
+
+    B2Context courseContext = new B2Context(b2Context.getRequest());
+    courseContext.setIgnoreContentContext(true);
+
+    String resourceIds = "";
+    String old = courseContext.getSetting(false, true, "x" + contentId);
+    String[] contexts = contextId.split(",");
+    if ((old.length() > 0) && (contexts.length > 0)) {
+      String[] contents = old.split(",");
+      StringBuilder resources = new StringBuilder();
+      for (int i = 0; i < Math.min(contexts.length, contents.length); i++) {
+        resources.append(",").append(urlEncode(urlDecode(contexts[i]) + contents[i]));
+      }
+      resourceIds = resources.substring(1);
+    }
+
+    return resourceIds;
 
   }
 
@@ -1475,6 +1822,131 @@ public class Utils {
 
   }
 
+/**
+ * Check the nonce on a form submission.
+ *
+ * An exception is thrown if an invalid nonce is detected.
+ *
+ * @param request  HTTP request
+ * @param form     Name of form (nonceId)
+ */
+  public static void checkForm(HttpServletRequest request, String form) throws Exception {
+
+    if (request.getMethod().equalsIgnoreCase("POST") && !NonceUtil.validate(request, form)) {
+      throw new Exception("Invalid nonce");
+    }
+
+  }
+
+/**
+ * Initialises the current node.
+ *
+ * @param session  HTTP session
+ * @param b2Context  B2Context object
+ */
+  public static Node initNode(HttpSession session, B2Context b2Context) {
+
+    return initNode(session, b2Context, true);
+
+  }
+
+  public static Node initNode(HttpSession session, B2Context b2Context, boolean systemNode) {
+
+    return initNode(session, b2Context, systemNode, false);
+
+  }
+
+  public static Node initNode(HttpSession session, B2Context b2Context, boolean systemNode, boolean includeRoot) {
+
+    Node node = null;
+    boolean nodeSupport = B2Context.getNodeSupport();
+    String nodeId = "";
+    if (nodeSupport && (!systemNode || includeRoot)) {
+      nodeSupport = b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      if (nodeSupport) {
+        b2Context.setInheritSettings(b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
+        nodeId = b2Context.getRequestParameter(Constants.NODE_PARAMETER, "");
+      }
+      if (nodeId.length() > 0) {
+        Utils.setValueInSession(session, b2Context, Constants.NODE_PARAMETER, nodeId);
+      } else {
+        nodeId = Utils.getValueFromSession(session, b2Context, Constants.NODE_PARAMETER, "");
+      }
+    }
+    if (nodeSupport && (!systemNode || includeRoot)) {
+      NodeManager nodeManager = NodeManagerFactory.getHierarchyManager();
+      try {
+        if (nodeId.length() > 0) {
+          Id id = Id.generateId(NodeInternal.DATA_TYPE, nodeId);
+          node = nodeManager.loadNodeById(id);
+          if (node == null) {
+            Utils.setValueInSession(session, b2Context, Constants.NODE_PARAMETER, null);
+          }
+        } else {
+          node = nodeManager.loadRootNode();
+        }
+        if ((node != null) && nodeManager.isRootNode(node.getNodeId()) && !includeRoot) {
+          node = null;
+        }
+      } catch (KeyNotFoundException e) {
+      } catch (PersistenceException e) {
+      }
+      if (node != null) {
+        b2Context.setNode(node);
+      } else {
+        b2Context.clearNode();
+      }
+    } else if (!nodeSupport) { //if (nodeSupport) {
+      b2Context.clearNode();
+    }
+
+    return node;
+
+  }
+
+  public static void checkSettings(B2Context b2Context) {
+
+    String value = b2Context.getB2Version();
+    if (!b2Context.getSettings().isEmpty() && !value.equals(b2Context.getSetting(Constants.B2_VERSION, ""))) {
+      b2Context.setSetting(Constants.B2_VERSION, value);
+      value = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, "");
+      if (value.length() > 0) {
+        b2Context.setSetting(Constants.TOOL_AVATAR, value);
+        b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, null);
+      }
+      value = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, "");
+      if (value.length() > 0) {
+        b2Context.setSetting(Constants.TOOL_DELEGATE, value);
+        b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, null);
+      }
+      value = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, "");
+      if (value.length() > 0) {
+        b2Context.setSetting(Constants.TOOL_COURSE_ROLES, value);
+        b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, null);
+      }
+      value = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, "");
+      if (value.length() > 0) {
+        b2Context.setSetting(Constants.TOOL_INSTITUTION_ROLES, value);
+        b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, null);
+      }
+      ToolList tools = new ToolList(b2Context);
+      Tool tool;
+      String toolId;
+      for (Iterator<Tool> iter = tools.getList().iterator(); iter.hasNext();) {
+        tool = iter.next();
+        toolId = tool.getId();
+        value = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId + "." + Constants.TOOL_COURSETOOL, "");
+        if (value.length() > 0) {
+          b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId + "." + Constants.TOOL_COURSETOOL, Constants.DATA_TRUE);
+          b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + toolId + "." + Constants.TOOL_COURSETOOLAPP, null);
+        }
+      }
+      b2Context.persistSettings();
+      b2Context.addReceiptOptionsToRequest(b2Context.getResourceString("page.system.tools.update", ""), null, null);
+    }
+
+  }
+
 // ---------------------------------------------------
 // Function to URL encode a string
 
@@ -1484,6 +1956,21 @@ public class Utils {
       value = URLEncoder.encode(value, "UTF-8");
     } catch (UnsupportedEncodingException ex) {
       value = URLEncoder.encode(value);
+    }
+
+    return value;
+
+  }
+
+// ---------------------------------------------------
+// Function to URL decode a string
+
+  public static String urlDecode(String value) {
+
+    try {
+      value = URLDecoder.decode(value, "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      value = URLDecoder.decode(value);
     }
 
     return value;
@@ -1510,9 +1997,35 @@ public class Utils {
 
     StringBuilder data = new StringBuilder();
     if (map != null) {
+      Map.Entry<String,String> entry;
       for (Iterator<Map.Entry<String,String>> iter = map.entrySet().iterator(); iter.hasNext();) {
-        Map.Entry<String,String> entry = iter.next();
+        entry = iter.next();
         data.append(entry.getKey()).append("=").append(entry.getValue()).append("\n");
+      }
+    }
+
+    return data.toString();
+
+  }
+
+// ---------------------------------------------------
+// Function to convert a map to a string
+
+  public static String mapArrayToString(Map<String,String[]> map) {
+
+    StringBuilder data = new StringBuilder();
+    if (map != null) {
+      Map.Entry<String,String[]> entry;
+      for (Iterator<Map.Entry<String,String[]>> iter = map.entrySet().iterator(); iter.hasNext();) {
+        entry = iter.next();
+        if (entry.getValue().length == 1) {
+          data.append(entry.getKey()).append("=").append(entry.getValue()[0]).append("\n");
+        } else {
+          data.append(entry.getKey()).append("=\n");
+          for (int i = 0; i < entry.getValue().length; i++) {
+            data.append("  --> ").append(entry.getValue()[i]).append("\n");
+          }
+        }
       }
     }
 
@@ -1540,6 +2053,15 @@ public class Utils {
     }
 
     return params;
+
+  }
+
+// ---------------------------------------------------
+// Check if a string represents a regular expression
+
+  public static boolean isRegExp(String exp) {
+
+    return exp.startsWith("^") && exp.endsWith("$");
 
   }
 

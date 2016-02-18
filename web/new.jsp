@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,10 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="blackboard.portal.data.Module,
                 blackboard.portal.persist.ModuleDbLoader,
+                blackboard.data.content.Content,
+                blackboard.persist.content.ContentDbLoader,
+                blackboard.persist.BbPersistenceManager,
+                blackboard.platform.persistence.PersistenceServiceFactory,
                 blackboard.persist.Id,
                 blackboard.persist.KeyNotFoundException,
                 blackboard.persist.PersistenceException,
@@ -31,27 +35,42 @@
                 org.oscelot.blackboard.lti.Tool"
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.course_tool.tool.title']}" onLoad="doOnLoad()">
+<bbNG:learningSystemPage title="${bundle['page.course_tool.tool.title']}" onLoad="osc_doOnLoad()" entitlement="system.generic.VIEW">
 <%
   Utils.checkForModule(request);
   B2Context b2Context = new B2Context(request);
+  String contentId = b2Context.getRequestParameter("content_id", "");
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, b2Context.getSetting(false, true, "tool.id", ""));
-  Tool tool = new Tool(b2Context, toolId);
+  Tool tool = Utils.getTool(b2Context, toolId);
+  String toolName = tool.getName();
+  if (tool.getByUrl()) {
+    if (contentId.length() > 0) {
+      BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
+      ContentDbLoader courseDocumentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
+      Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
+      Content content = courseDocumentLoader.loadById(id);
+      toolName = content.getTitle();
+    }
+  }
+
   pageContext.setAttribute("bundle", b2Context.getResourceStrings());
   pageContext.setAttribute("tool", tool);
-  pageContext.setAttribute("message", String.format(b2Context.getResourceString("page.opening.window"), tool.getName()));
-  pageContext.setAttribute("blocked", String.format(b2Context.getResourceString("page.blocked.window"), tool.getName()));
+  pageContext.setAttribute("message", String.format(b2Context.getResourceString("page.opening.window"), toolName));
+  pageContext.setAttribute("blocked", String.format(b2Context.getResourceString("page.blocked.window"), toolName));
 %>
   <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
-function unblock() {
+//<![CDATA[
+function osc_unblock() {
   var el = document.getElementById('id_blocked');
   el.style.display = 'block';
 }
-function doOnLoad() {
-  window.setInterval(unblock, 5000);
+
+function osc_doOnLoad() {
+  window.setTimeout(osc_unblock, 10000);
   document.forms[0].submit();
 }
+//]]>
 </script>
   </bbNG:jsBlock>
 <p>${message}</p>

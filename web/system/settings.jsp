@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,9 @@
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.settings.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.settings";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
@@ -45,24 +48,28 @@
     b2Context.setSetting(Constants.TOOL_EXT_OUTCOMES, b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_FALSE));
     b2Context.setSetting(Constants.TOOL_EXT_MEMBERSHIPS, b2Context.getRequestParameter(Constants.TOOL_EXT_MEMBERSHIPS, Constants.DATA_FALSE));
     b2Context.setSetting(Constants.TOOL_EXT_SETTING, b2Context.getRequestParameter(Constants.TOOL_EXT_SETTING, Constants.DATA_FALSE));
-    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
-    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, b2Context.getRequestParameter(Constants.TOOL_DELEGATE, Constants.DATA_FALSE));
-    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, b2Context.getRequestParameter(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(Constants.TOOL_RENDER, b2Context.getRequestParameter(Constants.TOOL_RENDER, Constants.DATA_FALSE));
+    b2Context.setSetting(Constants.TOOL_AVATAR, b2Context.getRequestParameter(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
+    b2Context.setSetting(Constants.TOOL_DELEGATE, b2Context.getRequestParameter(Constants.TOOL_DELEGATE, Constants.DATA_FALSE));
+    b2Context.setSetting(Constants.TOOL_COURSE_ROLES, b2Context.getRequestParameter(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
+    b2Context.setSetting(Constants.TOOL_INSTITUTION_ROLES, b2Context.getRequestParameter(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE));
     boolean setMashup = b2Context.getRequestParameter(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
     if (enabledMashup ^ setMashup) {
-      if (Utils.checkVTBEMashup(b2Context, setMashup)) {
-        if (setMashup) {
-          b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_TRUE);
-        } else {
-          b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE);
-        }
+      if (setMashup) {
+        b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_TRUE);
+      } else {
+        b2Context.setSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE);
       }
     }
     if (B2Context.getIsVersion(9, 1, 8)) {
       b2Context.setSetting(Constants.AVAILABILITY_PARAMETER, b2Context.getRequestParameter(Constants.AVAILABILITY_PARAMETER, Constants.AVAILABILITY_DEFAULT_OFF));
+      if (b2Context.getIsRootNode()) {
+        b2Context.setSetting(Constants.NODE_CONFIGURE, b2Context.getRequestParameter(Constants.NODE_CONFIGURE, Constants.DATA_FALSE));
+        b2Context.setSetting(Constants.INHERIT_SETTINGS, b2Context.getRequestParameter(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE));
+      }
     }
-    b2Context.setSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, b2Context.getRequestParameter(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE));
     b2Context.setSetting(Constants.TIMEOUT_PARAMETER, b2Context.getRequestParameter(Constants.TIMEOUT_PARAMETER, String.valueOf(Constants.TIMEOUT_OPTION)));
+    B2Context.setLogDebug(b2Context.getRequestParameter(Constants.DEBUG_MODE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
     b2Context.setSetting(Constants.CACHE_AGE_PARAMETER, b2Context.getRequestParameter(Constants.CACHE_AGE_PARAMETER, Constants.CACHE_OPTION));
     b2Context.setSetting(Constants.CACHE_CAPACITY_PARAMETER, b2Context.getRequestParameter(Constants.CACHE_CAPACITY_PARAMETER, Constants.CACHE_OPTION));
     if (!b2Context.getSetting(Constants.TIMEOUT_PARAMETER).matches("\\d*")) {
@@ -91,15 +98,17 @@
   params.put(Constants.TOOL_EXT_OUTCOMES, b2Context.getSetting(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_FALSE));
   params.put(Constants.TOOL_EXT_MEMBERSHIPS, b2Context.getSetting(Constants.TOOL_EXT_MEMBERSHIPS, Constants.DATA_FALSE));
   params.put(Constants.TOOL_EXT_SETTING, b2Context.getSetting(Constants.TOOL_EXT_SETTING, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_RENDER, b2Context.getSetting(Constants.TOOL_RENDER, Constants.DATA_FALSE));
   if (MyPlacesUtil.avatarsEnabled()) {
     pageContext.setAttribute("disableAvatar", "false");
-    params.put(Constants.TOOL_AVATAR, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_AVATAR, Constants.DATA_FALSE));
+    params.put(Constants.TOOL_AVATAR, b2Context.getSetting(Constants.TOOL_AVATAR, Constants.DATA_FALSE));
   } else {
     pageContext.setAttribute("disableAvatar", "true");
     params.put(Constants.TOOL_AVATAR, Constants.DATA_FALSE);
   }
-  params.put(Constants.TOOL_DELEGATE, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE));
-  params.put(Constants.TOOL_COURSE_ROLES, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_DELEGATE, b2Context.getSetting(Constants.TOOL_DELEGATE, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_COURSE_ROLES, b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE));
+  params.put(Constants.TOOL_INSTITUTION_ROLES, b2Context.getSetting(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE));
   params.put(Constants.MASHUP_PARAMETER, b2Context.getSetting(Constants.MASHUP_PARAMETER, Constants.DATA_FALSE));
   if (B2Context.getIsVersion(9, 1, 8)) {
     params.put(Constants.AVAILABILITY_PARAMETER + params.get(Constants.AVAILABILITY_PARAMETER), Constants.DATA_TRUE);
@@ -111,9 +120,16 @@
        b2Context.getResourceString("page.system.settings.step3.availability." + Constants.AVAILABILITY_ALWAYS_ON));
     params.put(Constants.AVAILABILITY_PARAMETER + Constants.AVAILABILITY_ALWAYS_OFF + "label",
        b2Context.getResourceString("page.system.settings.step3.availability." + Constants.AVAILABILITY_ALWAYS_OFF));
+    params.put(Constants.NODE_CONFIGURE, b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE));
+    params.put(Constants.INHERIT_SETTINGS, b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE));
   }
   params.put(Constants.TIMEOUT_PARAMETER, b2Context.getSetting(Constants.TIMEOUT_PARAMETER, Constants.TIMEOUT_OPTION));
-  params.put(Constants.TOOL_INSTITUTION_ROLES, b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE));
+  String debugMode = Constants.DATA_FALSE;
+  if (B2Context.getLogDebug()) {
+    debugMode = Constants.DATA_TRUE;
+  }
+
+  params.put(Constants.DEBUG_MODE, debugMode);
   pageContext.setAttribute("query", query);
   pageContext.setAttribute("params", params);
   pageContext.setAttribute("bundle", b2Context.getResourceStrings());
@@ -127,14 +143,14 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.system.settings.title']}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="settings.jsp?${query}" id="configForm" name="configForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="settings.jsp?${query}" id="configForm" name="configForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" id="stepOne" title="${bundle['page.system.settings.step1.title']}" instructions="${bundle['page.system.settings.step1.instructions']}">
-      <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step1.name.label']}">
-        <bbNG:textElement name="<%=Constants.CONSUMER_NAME_PARAMETER%>" value="<%=b2Context.getSetting(Constants.CONSUMER_NAME_PARAMETER)%>" helpText="${bundle['page.system.settings.step1.name.instructions']}" size="20" minLength="1" />
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.settings.step1.name.label']}">
+        <bbNG:textElement name="<%=Constants.CONSUMER_NAME_PARAMETER%>" value="<%=b2Context.getSetting(Constants.CONSUMER_NAME_PARAMETER)%>" helpText="${bundle['page.system.settings.step1.name.instructions']}" size="20" />
       </bbNG:dataElement>
-      <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step1.description.label']}">
-        <bbNG:textElement name="<%=Constants.CONSUMER_DESCRIPTION_PARAMETER%>" value="<%=b2Context.getSetting(Constants.CONSUMER_DESCRIPTION_PARAMETER)%>" helpText="${bundle['page.system.settings.step1.description.instructions']}" size="50" minLength="1" />
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.settings.step1.description.label']}">
+        <bbNG:textElement name="<%=Constants.CONSUMER_DESCRIPTION_PARAMETER%>" value="<%=b2Context.getSetting(Constants.CONSUMER_DESCRIPTION_PARAMETER)%>" helpText="${bundle['page.system.settings.step1.description.instructions']}" size="50" />
       </bbNG:dataElement>
       <bbNG:dataElement isRequired="false" label="${bundle['page.system.settings.step1.email.label']}">
         <bbNG:textElement name="<%=Constants.CONSUMER_EMAIL_PARAMETER%>" value="<%=b2Context.getSetting(Constants.CONSUMER_EMAIL_PARAMETER)%>" helpText="${bundle['page.system.settings.step1.email.instructions']}" size="50" />
@@ -158,6 +174,9 @@
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.institutionroles.label']}">
         <bbNG:checkboxElement isSelected="${params.institutionroles}" name="<%=Constants.TOOL_INSTITUTION_ROLES%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.institutionroles.instructions']}" />
       </bbNG:dataElement>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.render.label']}">
+        <bbNG:checkboxElement isSelected="${params.render}" name="<%=Constants.TOOL_RENDER%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.render.instructions']}" />
+      </bbNG:dataElement>
       <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.avatar.label']}">
         <bbNG:checkboxElement isSelected="${params.avatar}" name="<%=Constants.TOOL_AVATAR%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.avatar.instructions']}" isDisabled="${disableAvatar}" />
       </bbNG:dataElement>
@@ -179,10 +198,25 @@
         </bbNG:selectElement>
       </bbNG:dataElement>
 <%
+    if (b2Context.getIsRootNode()) {
+%>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.nodes.label']}">
+        <bbNG:checkboxElement isSelected="${params.nodes}" name="<%=Constants.NODE_CONFIGURE%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.nodes.instructions']}" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isSubElement="true" subElementType="INDENTED_NESTED_LIST">
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.inherit.label']}">
+          <bbNG:checkboxElement isSelected="${params.inherit}" name="<%=Constants.INHERIT_SETTINGS%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.inherit.instructions']}" />
+        </bbNG:dataElement>
+      </bbNG:dataElement>
+<%
+    }
   }
 %>
       <bbNG:dataElement isRequired="false" label="${bundle['page.system.settings.step3.timeout.label']}">
         <bbNG:textElement name="<%=Constants.TIMEOUT_PARAMETER%>" value="<%=b2Context.getSetting(Constants.TIMEOUT_PARAMETER, Constants.TIMEOUT_OPTION)%>" helpText="${bundle['page.system.settings.step3.timeout.instructions']}" size="10" />
+      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="true" label="${bundle['page.system.settings.step3.debugmode.label']}">
+        <bbNG:checkboxElement isSelected="${params.debugmode}" name="<%=Constants.DEBUG_MODE%>" value="<%=Constants.DATA_TRUE%>" helpText="${bundle['page.system.settings.step3.debugmode.instructions']}" />
       </bbNG:dataElement>
     </bbNG:step>
     <bbNG:step hideNumber="false" id="stepFour" title="${bundle['page.system.settings.step4.title']}" instructions="${bundle['page.system.settings.step4.instructions']}">

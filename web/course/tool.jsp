@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,8 +34,11 @@
                 org.oscelot.blackboard.lti.Constants"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.system.tool.title']}" entitlement="course.content.MODIFY">
+<bbNG:learningSystemPage title="${bundle['page.system.tool.title']}" entitlement="course.control_panel.VIEW">
 <%
+  String formName = "page.course.tool";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "tools.jsp?" + query;
@@ -107,6 +110,8 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_URL, toolUrl);
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_GUID, b2Context.getRequestParameter(Constants.TOOL_GUID, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SECRET, b2Context.getRequestParameter(Constants.TOOL_SECRET, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SIGNATURE_METHOD, b2Context.getRequestParameter(Constants.TOOL_SIGNATURE_METHOD, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONTENT_ITEM, b2Context.getRequestParameter(Constants.MESSAGE_CONTENT_ITEM, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG, b2Context.getRequestParameter(Constants.MESSAGE_CONFIG, Constants.DATA_FALSE));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES, b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_NOTUSED));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_COLUMN, b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_COLUMN, Constants.DATA_FALSE));
@@ -121,6 +126,8 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_SETTING, b2Context.getRequestParameter(Constants.TOOL_EXT_SETTING, Constants.DATA_NOTUSED));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CSS, b2Context.getRequestParameter(Constants.TOOL_CSS, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON, b2Context.getRequestParameter(Constants.TOOL_ICON, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON_DISABLED, b2Context.getRequestParameter(Constants.TOOL_ICON_DISABLED, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EMULATE_CORE, b2Context.getRequestParameter(Constants.TOOL_EMULATE_CORE, Constants.DATA_FALSE));
     if (b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_UUID, "").length() <= 0) {
       b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_UUID, UUID.randomUUID().toString());
     }
@@ -148,7 +155,7 @@
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_AVATAR, Constants.DATA_FALSE));
       b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLES,
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_ROLES, Constants.DATA_FALSE));
-      boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
       for (Iterator<CourseRole> iter = Utils.getCourseRoles(systemRolesOnly).iterator(); iter.hasNext();) {
         CourseRole role = iter.next();
         b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ROLE + "." + role.getIdentifier(),
@@ -169,6 +176,7 @@
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_SPLASHTEXT, ""));
       b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CUSTOM,
          b2Context.getSetting(defaultToolSettingPrefix + Constants.TOOL_CUSTOM, ""));
+      b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CONSUMER_GUID, Constants.DATA_TRUE);
     }
     if (ok && byXML) {
       for (Iterator<Map.Entry<String,String>> iter = settings.entrySet().iterator(); iter.hasNext();) {
@@ -185,6 +193,7 @@
       } else if (domain != null) {
         b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_GUID, null);
         b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SECRET, null);
+        b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_SIGNATURE_METHOD, null);
       }
       if (!ok) {
         messageResourceString = "page.system.tool.receipt.xml";
@@ -195,6 +204,7 @@
     if (ok && (toolUrl.length() > 0)) {
       try {
         URL url = new URL(toolUrl);
+        messageResourceString = "page.receipt.success";
       } catch (MalformedURLException e) {
         ok = false;
         messageResourceString = "page.system.tool.receipt.invalidurl";
@@ -243,6 +253,8 @@
   params.put(Constants.TOOL_URL, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_URL));
   params.put(Constants.TOOL_GUID, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_GUID));
   params.put(Constants.TOOL_SECRET, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_SECRET));
+  params.put(Constants.MESSAGE_CONTENT_ITEM,
+     b2Context.getSetting(false, true, toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONTENT_ITEM));
   params.put(Constants.MESSAGE_CONFIG,
      b2Context.getSetting(false, true, toolSettingPrefix + Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG));
   params.put(Constants.TOOL_EXT_OUTCOMES, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES, Constants.DATA_NOTUSED));
@@ -258,6 +270,8 @@
   params.put(Constants.TOOL_EXT_SETTING, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_SETTING, Constants.DATA_NOTUSED));
   params.put(Constants.TOOL_CSS, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_CSS));
   params.put(Constants.TOOL_ICON, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON));
+  params.put(Constants.TOOL_ICON_DISABLED, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON_DISABLED));
+  params.put(Constants.TOOL_EMULATE_CORE, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EMULATE_CORE));
 
   boolean tabSetting = !tabXml;
 
@@ -281,7 +295,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.system.tool.title']}${titleSuffix}"/>
   </bbNG:pageHeader>
-<bbNG:form action="tool.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();">
+<bbNG:form action="tool.jsp?${query}" name="toolForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
 <%
   if (!isNewTool) {
 %>
@@ -309,11 +323,20 @@
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step2.secret.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_SECRET%>" value="<%=params.get(Constants.TOOL_SECRET)%>" size="50" helpText="${bundle['page.system.tool.step2.secret.instructions']}" />
         </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2.signaturemethod.label']}">
+          <bbNG:selectElement name="<%=Constants.TOOL_SIGNATURE_METHOD%>" helpText="${bundle['page.system.tool.step2.signaturemethod.instructions']}">
+            <bbNG:selectOptionElement isSelected="${params.signaturemethodSHA1}" value="<%=Constants.DATA_SIGNATURE_METHOD_SHA1%>" optionLabel="${bundle['page.system.tool.signaturemethod.sha1']}" />
+            <bbNG:selectOptionElement isSelected="${params.signaturemethodSHA256}" value="<%=Constants.DATA_SIGNATURE_METHOD_SHA256%>" optionLabel="${bundle['page.system.tool.signaturemethod.sha256']}" />
+          </bbNG:selectElement>
+        </bbNG:dataElement>
 <%
   }
 %>
       </bbNG:step>
       <bbNG:step hideNumber="false" title="${bundle['page.system.tool.step2a.title']}" instructions="${bundle['page.system.tool.step2a.instructions']}">
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2a.contentitem.label']}">
+          <bbNG:checkboxElement isSelected="${params.contentitem}" name="<%=Constants.MESSAGE_CONTENT_ITEM%>" value="true" helpText="${bundle['page.system.tool.step2a.contentitem.instructions']}" />
+        </bbNG:dataElement>
         <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step2a.config.label']}">
           <bbNG:checkboxElement isSelected="${params.config}" name="<%=Constants.MESSAGE_CONFIG%>" value="true" helpText="${bundle['page.system.tool.step2a.config.instructions']}" />
         </bbNG:dataElement>
@@ -397,6 +420,12 @@
         </bbNG:dataElement>
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icon.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON%>" value="<%=params.get(Constants.TOOL_ICON)%>" size="80" helpText="${bundle['page.system.tool.step4.icon.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icondisabled.label']}">
+          <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON_DISABLED%>" value="<%=params.get(Constants.TOOL_ICON_DISABLED)%>" size="80" helpText="${bundle['page.system.tool.step4.icondisabled.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step4.emulatecore.label']}">
+          <bbNG:checkboxElement isSelected="${params.emulatecore}" name="<%=Constants.TOOL_EMULATE_CORE%>" value="true" helpText="${bundle['page.system.tool.step4.emulatecore.instructions']}" />
         </bbNG:dataElement>
       </bbNG:step>
     </bbNG:stepGroup>

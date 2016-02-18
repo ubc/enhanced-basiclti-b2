@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,24 +20,25 @@
 */
 package org.oscelot.blackboard.lti.resources;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.HashMap;
+
 import blackboard.data.content.Content;
 import blackboard.data.course.Course;
 import blackboard.persist.Id;
 import blackboard.persist.PersistenceException;
 import blackboard.platform.context.Context;
 import blackboard.platform.context.ContextManagerFactory;
-import org.oscelot.blackboard.lti.services.Service;
-import java.util.List;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Iterator;
 
 import org.oscelot.blackboard.lti.Tool;
 import org.oscelot.blackboard.lti.Constants;
+import org.oscelot.blackboard.lti.services.Service;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
-import java.util.ArrayList;
 
 
 public abstract class Resource {
@@ -49,6 +50,7 @@ public abstract class Resource {
   protected List<String> variables = null;
   protected List<String> methods = null;
   protected Map<String,String> params = null;
+  protected List<SettingDef> settings = null;
 
 
   public Resource(Service service) {
@@ -57,6 +59,7 @@ public abstract class Resource {
     this.methods = new ArrayList<String>();
     this.variables = new ArrayList<String>();
     this.methods.add("GET");
+    this.settings = new ArrayList<SettingDef>();
 
   }
 
@@ -102,6 +105,11 @@ public abstract class Resource {
 
   }
 
+  public List<SettingDef> getSettings() {
+
+    return Collections.unmodifiableList(this.settings);
+
+  }
 
   public String getEndpoint() {
 

@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,13 +46,16 @@
                 org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.content.create.title']}" onLoad="doOnLoad()">
 <%
+  String formName = "page.content.create";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   Utils.checkCourse(b2Context);
   b2Context.setIgnoreContentContext(true);
   ToolList toolList = new ToolList(b2Context);
-  boolean allowLocal = b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  boolean allowLocal = b2Context.getSetting(Constants.TOOL_DELEGATE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  String doConfig = null;
   boolean modify = true;
 
   String courseIdParamName = "course_id";
@@ -151,27 +154,49 @@
     if (toolId.length() > 0) {
       Tool tool = new Tool(b2Context, toolId);
       toolName = tool.getName();
+      if (tool.getContentItem().equals(Constants.DATA_TRUE)) {
+        if (custom == null) {
+          doConfig = "config.jsp?" + Constants.TOOL_ID + "=" + toolId + "&" + Utils.getQuery(request);
+          ok = false;
+        } else {
+          modify = false;
+          if (b2Context.getRequestParameter("title", "").length() > 0) {
+            toolName = b2Context.getRequestParameter("title", "");
+          }
+        }
+      }
     }
 
   }
 
+  boolean isLesson = false;
   if (ok) {
 
     BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
     ContentDbPersister persister = (ContentDbPersister)bbPm.getPersister(ContentDbPersister.TYPE);
+    ContentDbLoader contentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
 
     Content content = new Content();
-    content.setContentHandler(Constants.RESOURCE_HANDLE);
     Id childId = bbPm.generateId(Course.DATA_TYPE, courseId);
     Id parentId = bbPm.generateId(Content.DATA_TYPE, contentId);
     content.setCourseId(childId);
     content.setParentId(parentId);
-    content.setRenderType(Content.RenderType.DEFAULT);  // URL ???
+    content.setRenderType(Content.RenderType.DEFAULT);
     content.setTitle(toolName);
-    if (byXML && params.containsKey(Constants.TOOL_DESCRIPTION)) {
-      FormattedText text = new FormattedText(params.get(Constants.TOOL_DESCRIPTION), FormattedText.Type.PLAIN_TEXT);
+    Content parent = contentLoader.loadById(parentId);
+    if (parent.getIsLesson()) {
+      isLesson = true;
+      content.setContentHandler("resource/x-bb-document");
+      String url = b2Context.getPath() + "lessonitem?course_id=@X@course.pk_string@X@&content_id=@X@content.pk_string@X@";
+      FormattedText text = new FormattedText("<p><script type=\"text/javascript\" src=\"" + url + "\"></script></p>", FormattedText.Type.HTML);
       content.setBody(text);
-      params.remove(Constants.TOOL_DESCRIPTION);
+    } else {
+      content.setContentHandler(Utils.getResourceHandle(b2Context, null));
+      if (byXML && params.containsKey(Constants.TOOL_DESCRIPTION)) {
+        FormattedText text = new FormattedText(params.get(Constants.TOOL_DESCRIPTION), FormattedText.Type.PLAIN_TEXT);
+        content.setBody(text);
+        params.remove(Constants.TOOL_DESCRIPTION);
+      }
     }
     persister.persist(content);
 
@@ -180,8 +205,7 @@
 
     Context context = b2Context.getContext();
     B2Context contentContext = new B2Context(request);
-    contentContext.setContext(ContextManagerFactory.getInstance().setContext(context.getVirtualHost().getId(),
-       context.getCourseId(), Id.UNSET_ID, Id.UNSET_ID, content.getId()));
+    contentContext.setContext(Utils.initContext(context.getCourseId(), content.getId()));
     String toolSettingPrefix = null;
     String contentSettingPrefix = null;
     boolean isDomain = false;
@@ -218,6 +242,9 @@
       contentSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + toolId + ".";
       toolSettingPrefix = contentSettingPrefix;
       contentContext.setSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, toolId);
+      Tool tool = Utils.getTool(b2Context, toolId);
+      createColumn = tool.getOutcomesService().equals(Constants.DATA_MANDATORY) &&
+          tool.getOutcomesColumn().equals(Constants.DATA_TRUE);
       if (modify) {
         cancelUrl = "modify.jsp?" + contentQuery;
         cancelUrl = contentContext.setReceiptOptions(cancelUrl,
@@ -226,6 +253,9 @@
     }
     if (toolSettingPrefix != null) {
       b2Context.setIgnoreContentContext(true);
+      if (isLesson) {
+        contentContext.setSetting(false, true, contentSettingPrefix + Constants.TOOL_OPEN_IN, Constants.DATA_FRAME);
+      }
       contentContext.setSetting(false, true, contentSettingPrefix + Constants.TOOL_USERID,
          b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_USERID,
          b2Context.getSetting(toolSettingPrefix + Constants.TOOL_USERID, Constants.DATA_NOTUSED)));
@@ -289,10 +319,18 @@
     contentContext.persistSettings(false, true);
 
     if (createColumn) {
-      String outcomes_format = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_FORMAT, Constants.EXT_OUTCOMES_COLUMN_PERCENTAGE);
-      String points = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_POINTS, Constants.DEFAULT_POINTS_POSSIBLE);
-      boolean scorable = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_SCORABLE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
-      boolean visible = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_VISIBLE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      String outcomes_format = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_FORMAT,
+         b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_FORMAT,
+         b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_FORMAT, Constants.EXT_OUTCOMES_COLUMN_PERCENTAGE)));
+      String points = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_POINTS,
+           b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_POINTS,
+           b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_POINTS, Constants.DEFAULT_POINTS_POSSIBLE)));
+      boolean scorable = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_SCORABLE,
+           b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_SCORABLE,
+           b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_SCORABLE, Constants.DATA_FALSE))).equals(Constants.DATA_TRUE);
+      boolean visible = b2Context.getRequestParameter(Constants.TOOL_EXT_OUTCOMES_VISIBLE,
+           b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_VISIBLE,
+           b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EXT_OUTCOMES_VISIBLE, Constants.DATA_FALSE))).equals(Constants.DATA_TRUE);
       Utils.checkColumn(contentContext, null, toolName, outcomes_format, Utils.stringToInteger(points),
          scorable, visible, true);
     }
@@ -317,6 +355,7 @@
   pageContext.setAttribute("contentId", contentId);
   pageContext.setAttribute("outcomes_format" + outcomes_format, "true");
 %>
+<bbNG:learningSystemPage title="${bundle['page.content.create.title']}" onLoad="osc_doOnLoad()" entitlement="course.content.CREATE">
   <bbNG:pageHeader instructions="${bundle['page.content.create.instructions']}">
     <bbNG:breadcrumbBar>
       <bbNG:breadcrumb title="${bundle['page.content.create.title']}" />
@@ -325,33 +364,36 @@
   </bbNG:pageHeader>
   <bbNG:jsFile href="js/ajax.js" />
 <%
-    if (allowLocal && outcomesEnabled) {
+  if (allowLocal && outcomesEnabled) {
 %>
 <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
 //<![CDATA[
-var lti_checking = false;
-var lti_url = '';
-var lti_domain = '';
-var lti_step_el;
-function checkDomain(el) {
+var osc_lightbox;
+var osc_checking = false;
+var osc_url = '';
+var osc_domain = '';
+var osc_step_el;
+
+function osc_checkDomain(el) {
   var ok = true;
-  if (lti_url != el.value) {
-    lti_url = el.value;
-    var data = {"url":lti_url};
-    lti_checking = true;
-    osc_basiclti.checkUrl('check_domain.jsp', 'application/json', JSON.stringify(data), onCallback);
-    if (lti_step_el.style.display != 'block') {
+  if (osc_url != el.value) {
+    osc_url = el.value;
+    var data = {"url":osc_url};
+    osc_checking = true;
+    osc_basiclti.checkUrl('check_domain.jsp', 'application/json', JSON.stringify(data), osc_onCallback);
+    if (osc_step_el.style.display != 'block') {
       ok = false;
     }
   }
   return ok;
 }
-function onCallback(response) {
+
+function osc_onCallback(response) {
   eval('var result=' + response);
   if (result.createColumn) {
     var domain = result.domain;
-    if (domain != lti_domain) {
+    if (domain != osc_domain) {
       var el = document.getElementById('<%=Constants.TOOL_EXT_OUTCOMES_FORMAT%>');
       el.selectedIndex = result.format;
       el = document.getElementById('<%=Constants.TOOL_EXT_OUTCOMES_POINTS%>');
@@ -364,25 +406,57 @@ function onCallback(response) {
       el.checked = result.visible;
       el = document.getElementById('<%=Constants.TOOL_EXT_OUTCOMES_VISIBLE%>_n');
       el.checked = !result.visible;
-      lti_domain = result.domain;
+      osc_domain = result.domain;
     }
-    if (lti_step_el.style.display != 'block') {
-      lti_step_el.style.display = 'block';
+    if (osc_step_el.style.display != 'block') {
+      osc_step_el.style.display = 'block';
     }
-  } else if (lti_step_el.style.display != 'none') {
-    lti_step_el.style.display = 'none';
+  } else if (osc_step_el.style.display != 'none') {
+    osc_step_el.style.display = 'none';
   }
-  lti_checking = false;
+  osc_checking = false;
 }
-function doOnLoad() {
-  lti_step_el = document.getElementById('step3');
-  lti_step_el.style.display = 'none';
-  checkDomain(document.getElementById('<%=Constants.TOOL_URL%>'));
+
+function osc_doOnLoad() {
+<%
+    if (doConfig == null) {
+%>
+  osc_step_el = document.getElementById('step3');
+  osc_step_el.style.display = 'none';
+  osc_checkDomain(document.getElementById('<%=Constants.TOOL_URL%>'));
+<%
+    } else {
+%>
+  var dimensions = document.viewport.getDimensions();
+  var width = Math.round(dimensions.width * 0.8);
+  var height = Math.round(dimensions.height * 0.8);
+  var el_if_win = document.getElementById('if_win');
+  var osc_lbParam = {
+    defaultDimensions : { w : width, h : height },
+    title : '${bundle['page.system.tools.action.select']}...',
+    openLink : el_if_win,
+    contents : '<iframe src="<%=doConfig%>" width="' + width + '" height="' + height + '" />',
+    closeOnBodyClick : false,
+    showCloseLink : true,
+    onClose : osc_onClose,
+    useDefaultDimensionsAsMinimumSize : true
+  };
+  osc_lbParam.ajax = false;
+  osc_lightbox = new lightbox.Lightbox(osc_lbParam);
+  osc_lightbox.open();
+<%
+    }
+%>
 }
-function doValidateForm() {
+
+function osc_onClose() {
+  location.href = '<%=cancelUrl%>';
+}
+
+function osc_doValidateForm() {
   var ok = validateForm();
   if (ok) {
-    ok = !lti_checking;
+    ok = !osc_checking;
   }
   return ok;
 }
@@ -390,23 +464,58 @@ function doValidateForm() {
 </script>
   </bbNG:jsBlock>
 <%
-    } else {
+  } else {
 %>
   <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
 //<![CDATA[
-function doOnLoad() {
+function osc_doOnLoad() {
+<%
+    if (doConfig != null) {
+%>
+  var dimensions = document.viewport.getDimensions();
+  var width = Math.round(dimensions.width * 0.8);
+  var height = Math.round(dimensions.height * 0.8);
+  var el_if_win = document.getElementById('if_win');
+  var osc_lbParam = {
+    defaultDimensions : { w : width, h : height },
+    title : '${bundle['page.system.tools.action.select']}...',
+    openLink : el_if_win,
+    contents : '<iframe src="<%=doConfig%>" width="' + width + '" height="' + height + '" />',
+    closeOnBodyClick : false,
+    showCloseLink : true,
+    onClose : osc_onClose,
+    useDefaultDimensionsAsMinimumSize : true
+  };
+  osc_lbParam.ajax = false;
+  osc_lightbox = new lightbox.Lightbox(osc_lbParam);
+  osc_lightbox.open();
+<%
+    }
+%>
 }
-function doValidateForm() {
+
+<%
+    if (doConfig != null) {
+%>
+function osc_onClose() {
+  location.href = '<%=cancelUrl%>';
+}
+<%
+    }
+
+%>
+function osc_doValidateForm() {
   return validateForm();
 }
 //]]>
 </script>
   </bbNG:jsBlock>
 <%
-    }
+  }
+  if (doConfig == null) {
 %>
-  <bbNG:form action="create.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return doValidateForm();">
+<bbNG:form action="create.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return osc_doValidateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:stepGroup active="<%=nameTab%>" title="${bundle['page.content.create.tab.byname']}">
       <bbNG:step hideNumber="false" title="${bundle['page.content.create.step1.title']}" instructions="${bundle['page.content.create.step1.instructions']}">
@@ -436,7 +545,7 @@ function doValidateForm() {
       </bbNG:step>
       <bbNG:step hideNumber="false" title="${bundle['page.content.create.byurl.step2.title']}" instructions="${bundle['page.content.create.byurl.step2.instructions']}">
         <bbNG:dataElement isRequired="true" label="${bundle['page.content.create.byurl.step2.url.label']}">
-          <bbNG:textElement type="string" name="<%=Constants.TOOL_URL%>" id="<%=Constants.TOOL_URL%>" value="<%=toolUrl%>" size="80" helpText="${bundle['page.content.create.byurl.step2.url.instructions']}" onchange="return checkDomain(this);" />
+          <bbNG:textElement type="string" name="<%=Constants.TOOL_URL%>" id="<%=Constants.TOOL_URL%>" value="<%=toolUrl%>" size="80" helpText="${bundle['page.content.create.byurl.step2.url.instructions']}" onchange="return osc_checkDomain(this);" />
         </bbNG:dataElement>
       </bbNG:step>
 <%
@@ -481,4 +590,7 @@ function doValidateForm() {
     <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="<%=cancelUrl%>" />
   </bbNG:dataCollection>
   </bbNG:form>
+<%
+  }
+%>
 </bbNG:learningSystemPage>

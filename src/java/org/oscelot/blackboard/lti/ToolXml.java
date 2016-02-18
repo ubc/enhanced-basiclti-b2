@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -132,6 +132,7 @@ public class ToolXml extends HttpServlet {
     xml.append("  <extensions platform=\"").append(Constants.LTI_LMS).append("\">\n");
     xml.append(xmlProperty(Constants.TOOL_GUID, ""));
     xml.append(xmlProperty(Constants.TOOL_SECRET, ""));
+    xml.append(xmlProperty(Constants.TOOL_SIGNATURE_METHOD, tool.getSignatureMethod()));
     xml.append(xmlProperty(Constants.TOOL_ADMINISTRATOR, tool.getSendAdministrator()));
     xml.append(xmlProperty(Constants.TOOL_AVATAR, tool.getAvatar()));
     xml.append(xmlProperty(Constants.TOOL_CONTEXT_ID, tool.getContextId()));
@@ -168,7 +169,9 @@ public class ToolXml extends HttpServlet {
     xml.append(xmlProperty(Constants.TOOL_USERNAME, tool.getUsername()));
     xml.append(xmlProperty(Constants.TOOL_USER_SOURCEDID, tool.getUserSourcedid()));
     xml.append(xmlProperty(Constants.TOOL_WINDOW_NAME, tool.getWindowName()));
+    xml.append(xmlProperty(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONTENT_ITEM, tool.getContentItem()));
     xml.append(xmlProperty(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_CONFIG, tool.getConfig()));
+    xml.append(xmlProperty(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_DASHBOARD, tool.getDashboard()));
     ServiceList services = new ServiceList(b2Context, true);
     Service service;
     for (Iterator<Service> iter = services.getList().iterator(); iter.hasNext();) {

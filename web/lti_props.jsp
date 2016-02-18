@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,19 +34,19 @@
   String moduleId = Utils.checkForModule(request);
   Module module = Utils.getModule(moduleId);
   B2Context b2Context = new B2Context(request);
-  pageContext.setAttribute("bundle", b2Context.getResourceStrings());
-  String toolId = b2Context.getSetting(false, true,
-     Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID,
-     b2Context.getRequestParameter(Constants.TOOL_ID, ""));
-  String idString = "";
-  Tool tool = new Tool(b2Context, toolId);
-  if (tool.getName().length() <= 0) {
-    idString = toolId;
-    toolId = b2Context.getSetting(false, true, Constants.TOOL_ID + "." + idString + "." + Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, "");
-    tool = new Tool(b2Context, toolId);
+  boolean nodeSupport = b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+  if (nodeSupport) {
+    b2Context.setInheritSettings(b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
+  } else {
+    b2Context.clearNode();
   }
+  pageContext.setAttribute("bundle", b2Context.getResourceStrings());
+  String toolId = b2Context.getRequestParameter(Constants.TOOL_ID,
+     b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID, ""));
+  Tool tool = Utils.getTool(b2Context, toolId);
   String toolURL = tool.getLaunchUrl();
-  LaunchMessage message = new LaunchMessage(b2Context, toolId, idString, module);
-  message.signParameters(toolURL, tool.getLaunchGUID(), tool.getLaunchSecret());
+
+  LaunchMessage message = new LaunchMessage(b2Context, tool, module);
+  message.signParameters(toolURL, tool.getLaunchGUID(), tool.getLaunchSecret(), tool.getLaunchSignatureMethod());
   List<Map.Entry<String, String>> params = message.getParams();
 %>

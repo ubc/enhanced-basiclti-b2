@@ -26,13 +26,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import blackboard.platform.context.Context;
-import blackboard.platform.context.ContextManagerFactory;
-import blackboard.data.course.Course;
-import blackboard.data.content.Content;
-import blackboard.persist.Id;
-import blackboard.persist.PersistenceException;
-
 import java.net.URISyntaxException;
 
 import java.util.List;
@@ -138,28 +131,6 @@ public class Controller extends HttpServlet {
     return "Extension services";
   }
 
-  public static Context initContext(String course, String content) {
-
-    Context ctx = ContextManagerFactory.getInstance().getContext();
-    Id vhId = Id.UNSET_ID;
-    Id courseId = Id.UNSET_ID;
-    Id contentId = Id.UNSET_ID;
-    try {
-      vhId = ctx.getVirtualHost().getId();
-      if (course != null) {
-        courseId = Id.generateId(Course.DATA_TYPE, course);
-      }
-      if (content != null) {
-        contentId = Id.generateId(Content.DATA_TYPE, content);
-      }
-    } catch (PersistenceException e) {
-    }
-
-    return ContextManagerFactory.getInstance().setContext(vhId, courseId, Id.UNSET_ID,
-       Id.UNSET_ID, contentId);
-
-  }
-
   public boolean getServicesData(String key, String paramName) {
 
     String param = this.b2Context.getRequestParameter(paramName, "");
@@ -179,9 +150,18 @@ public class Controller extends HttpServlet {
       ok = (courseId.length() > 0);
     }
     if (ok) {
-      this.b2Context.setContext(Controller.initContext(courseId, contentId));
-      this.tool = new Tool(this.b2Context, toolId);
+      this.b2Context.setContext(Utils.initContext(courseId, contentId));
+      boolean nodeSupport = this.b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      if (nodeSupport) {
+        this.b2Context.setInheritSettings(this.b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
+      } else {
+        this.b2Context.clearNode();
+      }
+      this.tool = Utils.getTool(this.b2Context, toolId);
       ok = key.equals(tool.getLaunchGUID());
+      if (!ok) {
+        B2Context.log(true, "getServicesData - invalid consumer key: " + key + "; expected " + tool.getLaunchGUID());
+      }
     }
     if (ok) {
       this.servicesData = new ArrayList<String>();
@@ -192,6 +172,9 @@ public class Controller extends HttpServlet {
         hash.append(item);
       }
       ok = Utils.getHash(hash.toString(), tool.getSendUUID()).equals(Utils.decodeHash(data[0]));
+      if (!ok) {
+        B2Context.log(true, "getServicesData - invalid hash");
+      }
     }
 
     return ok;
@@ -208,7 +191,7 @@ public class Controller extends HttpServlet {
     OAuthValidator validator = new SimpleOAuthValidator();
     OAuthMessage message = OAuthServlet.getMessage(this.b2Context.getRequest(), null);
     try {
-    	validator.validateMessage(message, oAuthAccessor);
+      message.validateMessage(oAuthAccessor, validator);
     } catch (OAuthException e) {
       this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
       ok = false;

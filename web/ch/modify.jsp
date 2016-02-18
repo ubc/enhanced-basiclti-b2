@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,8 +50,11 @@
                 org.oscelot.blackboard.lti.Utils"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.content.tool.title']}">
+<bbNG:learningSystemPage title="${bundle['page.content.tool.title']}" entitlement="course.content.MODIFY">
 <%
+  String formName = "page.content.modify";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   Utils.checkCourse(b2Context);
   String courseIdParamName = "course_id";
@@ -80,16 +83,35 @@
     toolName = ": " + tool.getName();
   }
 
-  String cancelUrl = b2Context.getNavigationItem("cp_content_quickedit").getHref();
-  cancelUrl = cancelUrl.replace("@X@course.pk_string@X@", courseId);
-  cancelUrl = cancelUrl.replace("@X@content.pk_string@X@", contentId);
-
   Map<String,String> params = new HashMap<String,String>();
 
   BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
+  ContentDbPersister contentPersister = (ContentDbPersister)bbPm.getPersister(ContentDbPersister.TYPE);
   ContentDbLoader contentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
   Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
   Content content = contentLoader.loadById(id);
+  Content parent = contentLoader.loadById(content.getParentId());
+
+  String cancelUrl = b2Context.getNavigationItem("cp_content_quickedit").getHref();
+  cancelUrl = cancelUrl.replace("@X@course.pk_string@X@", courseId);
+  cancelUrl = cancelUrl.replace("@X@content.pk_string@X@", parent.getId().toExternalString());
+
+  if (parent.getIsLesson() && content.getContentHandler().equals(Utils.getResourceHandle(b2Context, null))) {
+    content.setContentHandler("resource/x-bb-document");
+    String url = b2Context.getPath() + "lessonitem?course_id=@X@course.pk_string@X@&content_id=@X@content.pk_string@X@";
+    FormattedText text = new FormattedText("<p><script type=\"text/javascript\" src=\"" + url + "\"></script></p>", FormattedText.Type.HTML);
+    content.setBody(text);
+    contentPersister.persist(content);
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_OPEN_IN, null);
+    b2Context.persistSettings(false, true);
+  } else if (!parent.getIsLesson() && content.getContentHandler().equals("resource/x-bb-document")) {
+    content.setContentHandler(Utils.getResourceHandle(b2Context, null));
+    FormattedText text = new FormattedText("", FormattedText.Type.HTML);
+    content.setBody(text);
+    contentPersister.persist(content);
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_OPEN_IN, Constants.DATA_IFRAME);
+    b2Context.persistSettings(false, true);
+  }
 
   boolean outcomesEnabled = b2Context.getSetting(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
   boolean membershipsEnabled = b2Context.getSetting(Constants.TOOL_EXT_MEMBERSHIPS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
@@ -132,15 +154,16 @@
     GroupContent.persistGroupAssignment(content.getId(), assignGroups, unassignGroups);
     content.setIsGroupContent(assignGroups.length() > 0);
 
-    ContentDbPersister contentPersister = (ContentDbPersister)bbPm.getPersister(ContentDbPersister.TYPE);
     String name = b2Context.getRequestParameter(Constants.TOOL_NAME, "");
     name = name.trim();
     if (name.length() > 0) {
       content.setTitle(name);
     }
-    String paramName = Constants.TOOL_DESCRIPTION + "_";
-    FormattedText text = TextboxTag.getFormattedText(request, paramName);
-    content.setBody(text);
+    if (!parent.getIsLesson()) {
+      String paramName = Constants.TOOL_DESCRIPTION + "_";
+      FormattedText text = TextboxTag.getFormattedText(request, paramName);
+      content.setBody(text);
+    }
     if (!content.getRenderType().equals(Content.RenderType.DEFAULT)) {
       content.setRenderType(Content.RenderType.DEFAULT);
     }
@@ -201,6 +224,7 @@
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_CSS,
        b2Context.getRequestParameter(Constants.TOOL_CSS, ""));
     b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON, b2Context.getRequestParameter(Constants.TOOL_ICON, ""));
+    b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON_DISABLED, b2Context.getRequestParameter(Constants.TOOL_ICON_DISABLED, ""));
     if (b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_UUID, "").length() <= 0) {
       b2Context.setSetting(false, true, toolSettingPrefix + Constants.TOOL_EXT_UUID, UUID.randomUUID().toString());
     }
@@ -219,19 +243,22 @@
       error = b2Context.getResourceString("page.content.modify.nodomain.warning");
     }
 
-    if (b2Context.getRequestParameter("action", "").equals("launch")) {
+    if (b2Context.getRequestParameter("launch", Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
       cancelUrl = b2Context.getPath() + "tool.jsp?course_id=" + courseId + "&content_id=" + contentId;
     } else {
       cancelUrl = b2Context.setReceiptOptions(cancelUrl,
          b2Context.getResourceString("page.receipt.success"), error);
     }
     response.sendRedirect(cancelUrl);
+    return;
 
   } else {
     params.put(Constants.TOOL_NAME, content.getTitle());
-    String type = content.getBody().getType().toFieldName().substring(0, 1);
-    params.put("descriptiontype", type);
-    params.put("descriptiontext", content.getBody().getText());
+    if (!parent.getIsLesson()) {
+      String type = content.getBody().getType().toFieldName().substring(0, 1);
+      params.put("descriptiontype", type);
+      params.put("descriptiontext", content.getBody().getText());
+    }
   }
 
   params.put("descriptionname", Constants.TOOL_DESCRIPTION + "_");
@@ -285,6 +312,7 @@
   pageContext.setAttribute("disableSetting", String.valueOf(settingDisabled));
   params.put(Constants.TOOL_CSS, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_CSS));
   params.put(Constants.TOOL_ICON, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON));
+  params.put(Constants.TOOL_ICON_DISABLED, b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_ICON_DISABLED));
 
   List<MultiSelectBean> assignGroups = new ArrayList<MultiSelectBean>();
   List<MultiSelectBean> unassignGroups = new ArrayList<MultiSelectBean>();
@@ -334,24 +362,30 @@
 <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
 //<![CDATA[
-function doAction(action) {
-  var el = document.getElementById('id_action');
-  el.value = action;
+function doLaunch() {
+  var el = document.getElementById('id_launch');
+  el.value = 'true';
   document.frmModify.submit();
   return true;
 }
 //]]>
 </script>
 </bbNG:jsBlock>
-  <bbNG:form name="frmModify" action="modify.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return validateForm();">
+  <bbNG:form name="frmModify" action="modify.jsp?course_id=${courseId}&content_id=${contentId}" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.content.modify.step1.title']}" instructions="${bundle['page.content.modify.step1.instructions']}">
       <bbNG:dataElement isRequired="true" label="${bundle['page.content.modify.step1.name.label']}">
         <bbNG:textElement type="string" name="<%=Constants.TOOL_NAME%>" value="<%=params.get(Constants.TOOL_NAME)%>" minLength="1" helpText="${bundle['page.content.modify.step1.name.description']}" />
       </bbNG:dataElement>
+<%
+  if (!parent.getIsLesson()) {
+%>
       <bbNG:dataElement isRequired="false" label="${bundle['page.content.modify.step1.description.label']}">
         <bbNG:textbox name="${params.descriptionname}" format="${params.descriptiontype}" text="${params.descriptiontext}" helpText="${bundle['page.content.modify.step1.description.description']}" rows="5" />
       </bbNG:dataElement>
+<%
+  }
+%>
     </bbNG:step>
 <%
   if (byUrl) {
@@ -462,7 +496,7 @@ function doAction(action) {
 %>
         ${bundle['page.content.modify.step4.lineitem.label']}
 <%
-      } else if (params.get(Constants.TOOL_EXT_OUTCOMES).equals(Constants.DATA_TRUE)) {
+      } else {
 %>
         <bbNG:dataElement isSubElement="true" subElementType="INDENTED_NESTED_LIST">
           <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step3.outcomes_column.label']}">
@@ -518,6 +552,9 @@ function doAction(action) {
       <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icon.label']}">
         <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON%>" value="<%=params.get(Constants.TOOL_ICON)%>" size="80" helpText="${bundle['page.system.tool.step4.icon.instructions']}" />
       </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icondisabled.label']}">
+        <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON_DISABLED%>" value="<%=params.get(Constants.TOOL_ICON_DISABLED)%>" size="80" helpText="${bundle['page.system.tool.step4.icondisabled.instructions']}" />
+      </bbNG:dataElement>
     </bbNG:step>
 <%
   }
@@ -541,11 +578,24 @@ function doAction(action) {
         <bbNG:multiSelect widgetName="<%=Constants.GROUPS_PARAMETER_NAME%>" sourceTitle="${bundle['page.content.modify.step3.groups.unselected.label']}" sourceCollection="${unassignedGroups}" destCollection="${assignedGroups}" destTitle="${bundle['page.content.modify.step3.groups.selected.label']}" formName="frmModify" />
       </bbNG:dataElement>
     </bbNG:step>
+<%
+  if (!parent.getIsLesson() && (tool != null) && !tool.getOpenIn().equals(Constants.DATA_POPUP) && !tool.getOpenIn().equals(Constants.DATA_OVERLAY)) {
+%>
     <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="<%=cancelUrl%>">
-      <input type="hidden" name="action" id="id_action" value="" />
-      <bbNG:stepSubmitButton label="${bundle['button.submitandlaunch.label']}" onClick="doAction('launch');" />
+      <input type="hidden" name="launch" id="id_launch" value="false" />
+      <bbNG:stepSubmitButton label="${bundle['button.submitandlaunch.label']}" onClick="return doLaunch();" />
       <bbNG:stepSubmitButton label="${bundle['button.submit.label']}" primary="true" />
     </bbNG:stepSubmit>
+<%
+  } else {
+%>
+    <bbNG:stepSubmit hideNumber="false" showCancelButton="true" cancelUrl="<%=cancelUrl%>">
+      <input type="hidden" name="launch" id="id_launch" value="false" />
+      <bbNG:stepSubmitButton label="${bundle['button.submit.label']}" primary="true" />
+    </bbNG:stepSubmit>
+<%
+  }
+%>
   </bbNG:dataCollection>
   </bbNG:form>
 </bbNG:learningSystemPage>

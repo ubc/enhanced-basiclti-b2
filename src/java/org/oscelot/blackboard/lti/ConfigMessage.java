@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,21 +25,24 @@ import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
 public class ConfigMessage extends LtiMessage {
 
-  public ConfigMessage(B2Context b2Context, String toolId) {
+  public ConfigMessage(B2Context b2Context, Tool tool) {
 
-    super(b2Context, toolId, null);
-
+    super(b2Context, tool, null);
     this.props.setProperty("lti_message_type", Constants.CONFIG_MESSAGE_TYPE);
     String query = "&" + Utils.getQuery(b2Context.getRequest());
     query = query.replaceAll("&" + Constants.PAGE_PARAMETER_NAME + "=[^&]*", "");
-    if (query.length() > 0) {
-      query = query.substring(1) + "&";
+    if (query.length() != 1) {
+      query += "&";
     }
-    String returnUrl = b2Context.getServerUrl() + b2Context.getPath() + "return.jsp?" + query;
-    String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
-    if (sourcePage.length() > 0) {
-      returnUrl += Constants.PAGE_PARAMETER_NAME + "=" + sourcePage + "&";
+    String page = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
+    if (page.length() > 0) {
+      query += Constants.PAGE_PARAMETER_NAME + "=" + page;
+    } else if (b2Context.getContext().hasCourseContext()) {
+      query += Constants.PAGE_PARAMETER_NAME + "=" + Constants.COURSE_TOOLS_PAGE;
+    } else {
+      query += Constants.PAGE_PARAMETER_NAME + "=" + Constants.ADMIN_PAGE;
     }
+    String returnUrl = b2Context.getServerUrl() + b2Context.getPath() + "return.jsp?" + query.substring(1);
     this.props.setProperty("launch_presentation_return_url", returnUrl);
     if (this.props.getProperty("launch_presentation_document_target").equals("iframe")) {
       this.props.setProperty("launch_presentation_document_target", "frame");
@@ -75,7 +78,7 @@ public class ConfigMessage extends LtiMessage {
         paramName = item[0];
         if (paramName.length()>0) {
           if (item.length > 1) {
-            value = Utils.parseParameter(b2Context, this.props, this.course, this.user, this.tool, item[1]);
+            value = Utils.parseParameter(b2Context, this.props, this.user, this.course, this.content, this.tool, item[1]);
           } else {
             value = "";
           }

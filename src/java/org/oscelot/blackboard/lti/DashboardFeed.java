@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.URI;
+import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.methods.PostMethod;
 
 
@@ -163,10 +164,10 @@ public class DashboardFeed {
 
   public String readUrlAsString(String urlString) {
 
-    boolean ok;
     String fileContent = "";
-    LtiMessage message = new DashboardMessage(this.b2Context, this.tool.getId(), this.module);
-    message.signParameters(urlString, message.tool.getLaunchGUID(), message.tool.getLaunchSecret());
+    LtiMessage message = new DashboardMessage(this.b2Context, this.tool, this.module);
+    message.signParameters(urlString, message.tool.getLaunchGUID(), message.tool.getLaunchSecret(),
+       tool.getLaunchSignatureMethod());
 
     int timeout;
     try {
@@ -177,15 +178,31 @@ public class DashboardFeed {
     HttpClient client = new HttpClient();
     client.getHttpConnectionManager().getParams().setConnectionTimeout(timeout);
     PostMethod httpPost = new PostMethod(urlString);
-    httpPost.setFollowRedirects(false);
     httpPost.addParameters(message.getHTTPParams());
-
     try {
       httpPost.setURI(new URI(urlString, false));
       int resp = client.executeMethod(httpPost);
-      ok = (resp < 400) ;
-      if (ok) {
+      if (resp < 300) {
         fileContent = httpPost.getResponseBodyAsString();
+      } else if (resp < 400) {
+        if (httpPost.getResponseHeader("Location") != null) {
+          String url = httpPost.getResponseHeader("Location").getValue();
+          if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            String host = httpPost.getURI().getHost();
+            if (httpPost.getResponseHeader("Host") != null) {
+              host = httpPost.getResponseHeader("Host").getValue();
+            }
+            url = httpPost.getURI().getScheme() + "://" + host + url;
+          }
+          Header[] cookies = httpPost.getResponseHeaders("Set-Cookie");
+          String[] cookie;
+          Map<String,String> headers = new HashMap<String,String>();
+          for (int i = 0; i < cookies.length; i++) {
+            cookie = cookies[i].getValue().split(";", 2);
+            headers.put("Cookie", cookie[0].trim());
+          }
+          fileContent = Utils.readUrlAsString(this.b2Context, url, headers);
+        }
       }
     } catch (IOException e) {
       Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, e);
@@ -203,6 +220,7 @@ public class DashboardFeed {
     Document xmlDoc = Utils.getXMLDoc(xml);
     Element el = Utils.getXmlChild(xmlDoc.getRootElement(), "channel");
     if (el != null) {
+      this.content = Utils.getXmlChildValue(el, "description");
       Element elIcon = Utils.getXmlChild(el, "image");
       if (elIcon != null) {
         this.iconUrl = Utils.getXmlChildValue(elIcon, "url");
@@ -214,6 +232,7 @@ public class DashboardFeed {
       String id;
       String title;
       String body;
+      String launch;
       boolean isEmpty;
       List<Element> els = el.getChildren("item");
       for (Iterator<Element> iter = els.iterator(); iter.hasNext();) {
@@ -225,13 +244,11 @@ public class DashboardFeed {
           body = Utils.getXmlChildValue(el, "description");
           isEmpty = (body == null) || (body.length() <= 0);
           if ((launchUrl.length() > 0) && (Utils.getXmlChild(el, "property") != null)) {
-            if (!isEmpty) {
-              title = "<span class=\"itemTitle\"><a href=\"" + this.launchUrl + "&amp;n=" + id + "\">" + title + "</a></span>";
-            } else {
-              title = "<span class=\"itemTitle\" onclick=\"window.open('" + this.launchUrl + "&amp;n=" + id + "', '_self');\"><a href=\"" + this.launchUrl + "&amp;n=" + id + "\">" + title + "</a></span>";
-            }
+            launch = "true";
+          } else {
+            launch = null;
           }
-          CollapsibleListItem item = new CollapsibleListItem(id, title, null, body, isEmpty, autoOpen || isEmpty);
+          CollapsibleListItem item = new CollapsibleListItem(id, title, launch, body, isEmpty, autoOpen || isEmpty);
           this.items.add(item);
         }
       }
@@ -253,6 +270,7 @@ public class DashboardFeed {
       String id;
       String title;
       String body;
+      Boolean launch;
       boolean isEmpty;
       List<Element> els = el.getChildren("entry");
       for (Iterator<Element> iter = els.iterator(); iter.hasNext();) {
@@ -264,13 +282,11 @@ public class DashboardFeed {
           body = Utils.getXmlChildValue(el, "content");
           isEmpty = (body == null) || (body.length() <= 0);
           if ((launchUrl.length() > 0) && (Utils.getXmlChild(el, "property") != null)) {
-            if (!isEmpty) {
-              title = "<span class=\"itemTitle\"><a href=\"" + this.launchUrl + "&amp;n=" + id + "\">" + title + "</a></span>";
-            } else {
-              title = "<span class=\"itemTitle\" onclick=\"window.open('" + this.launchUrl + "&amp;n=" + id + "', '_self');\"><a href=\"" + this.launchUrl + "&amp;n=" + id + "\">" + title + "</a></span>";
-            }
+            launch = true;
+          } else {
+            launch = null;
           }
-          CollapsibleListItem item = new CollapsibleListItem(id, title, null, body, isEmpty, autoOpen || isEmpty);
+          CollapsibleListItem item = new CollapsibleListItem(this.b2Context.getHandle() + id, title, String.valueOf(launch), body, isEmpty, autoOpen || isEmpty);
           this.items.add(item);
         }
       }

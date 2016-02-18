@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,9 @@
                 blackboard.platform.persistence.PersistenceServiceFactory,
                 org.oscelot.blackboard.lti.Utils"
         errorPage="error.jsp"%>
+<%@taglib uri="/bbNG" prefix="bbNG"%>
 <%@include file="lti_props.jsp" %>
+<bbNG:includedPage entitlement="system.generic.VIEW">
 <%
   String url = "";
   String courseId = b2Context.getRequestParameter("course_id", "");
@@ -35,6 +37,8 @@
   String tabId = b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, "");
   String cTabId = b2Context.getRequestParameter(Constants.COURSE_TAB_PARAMETER_NAME, "");
   String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
+  String mode = b2Context.getRequestParameter("mode", "");
+  String toolName = tool.getName();
   boolean isIframe = b2Context.getRequestParameter("if", "").length() > 0;
   if (!isIframe) {
     if (contentId.length() > 0) {
@@ -42,7 +46,8 @@
       ContentDbLoader courseDocumentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
       Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
       Content content = courseDocumentLoader.loadById(id);
-      if (!content.getIsFolder()) {
+        toolName = content.getTitle();
+      if (!content.getIsFolder() || content.getIsLesson()) {
         id = content.getParentId();
         contentId = id.toExternalString();
       }
@@ -54,19 +59,24 @@
       url = url.replace("@X@course.pk_string@X@", courseId);
       url = url.replace("@X@content.pk_string@X@", contentId);
     } else if (tabId.length() > 0) {
-      url = "/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=" + tabId;
-       url = "/webapps/portal/execute/tabs/tabAction?" + Constants.TAB_PARAMETER_NAME + "=" + tabId;
+      url = "/webapps/portal/execute/tabs/tabAction?" + Constants.TAB_PARAMETER_NAME + "=" + tabId;
     } else if ((moduleId != null) && (moduleId.length() > 0)) {
       url = "/webapps/blackboard/execute/modulepage/view?course_id=" + courseId + "&" +
          Constants.COURSE_TAB_PARAMETER_NAME + "=" + cTabId;
-   } else {
-      url = b2Context.getPath();
-      if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE)) {
-        url += "course/";
-      }
-      url += "tools.jsp?" + Utils.getQuery(request);
+    } else if (sourcePage.equals(Constants.TOOL_USERTOOL)) {
+      url = b2Context.getRequestParameter("returnUrl", "");
+    } else if (sourcePage.equals(Constants.COURSE_TOOLS_PAGE)) {
+      url = b2Context.getPath() + "course/" + "tools.jsp?" + Utils.getQuery(request);
+    } else if (sourcePage.equals(Constants.TOOLS_PAGE)) {
+      url = b2Context.getPath() + "tools.jsp?" + Utils.getQuery(request);
+    } else if (mode.length() > 0) {
+      url = b2Context.getNavigationItem("course_top").getHref();
+      url = url.replace("@X@course.pk_string@X@", courseId);
+    } else {
+      url = b2Context.getNavigationItem("course_tools_area").getHref();
+      url = url.replace("@X@course.pk_string@X@", courseId);
     }
-    url = b2Context.setReceiptOptions(url, String.format(b2Context.getResourceString("page.new.window"), tool.getName()), null);
+    url = b2Context.setReceiptOptions(url, String.format(b2Context.getResourceString("page.new.window"), toolName), null);
     pageContext.setAttribute("url", url);
   }
 %>
@@ -76,19 +86,29 @@
   if (params != null) {
 %>
 <script language="javascript" type="text/javascript">
-function doOnLoad() {
+function osc_doOnLoad() {
 <%
     if (!isIframe) {
 %>
   if (window.opener) {
+<%
+      if (!B2Context.getIsVersion(9, 1, 201404)) {
+%>
     window.opener.location.href = '${url}';
+<%
+      } else {
+%>
+    window.opener.parent.location.href = '${url}';
+<%
+      }
+%>
   }
 <%
     }
 %>
   document.forms[0].submit();
 }
-window.onload=doOnLoad;
+window.onload=osc_doOnLoad;
 </script>
 <%
   }
@@ -119,3 +139,4 @@ window.onload=doOnLoad;
 %>
 </body>
 </html>
+</bbNG:includedPage>

@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 --%>
 <%@page import="java.util.List,
                 java.util.ArrayList,
+                java.util.Iterator,
                 java.util.Date,
                 java.util.Calendar,
                 blackboard.portal.data.Module,
@@ -37,6 +38,7 @@
 
   Module module = (Module)request.getAttribute("blackboard.portal.data.Module");
   String courseId = b2Context.getRequestParameter("course_id", "");
+  String groupId = b2Context.getRequestParameter("group_id", "");
 
   String name = b2Context.getVendorId() + "-" + b2Context.getHandle() + "-" + module.getId().toExternalString();
   b2Context.getRequest().getSession().setAttribute(name + "-launch", b2Context.getRequest().getSession().getAttribute(name));
@@ -48,11 +50,15 @@
   Tool tool = new Tool(b2Context, toolId);
   String launchUrl = "";
   if (allowLaunch) {
-    launchUrl = b2Context.getPath() + "tool.jsp?" +
-       Constants.TOOL_MODULE + "=" + module.getId().toExternalString() +
-       "&amp;" + Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, "");
-    if (courseId.length() > 0) {
-      launchUrl += "&amp;course_id=" + courseId;
+    launchUrl = b2Context.getPath() + "tool.jsp?" + Constants.TOOL_MODULE + "=" + module.getId().toExternalString() + "&amp;";
+    if (courseId.length() <= 0) {
+      launchUrl += Constants.TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.TAB_PARAMETER_NAME, "");
+    } else {
+      launchUrl += "course_id=" + courseId + "&amp;" +
+         Constants.COURSE_TAB_PARAMETER_NAME + "=" + b2Context.getRequestParameter(Constants.COURSE_TAB_PARAMETER_NAME, "");
+    }
+    if (groupId.length() > 0) {
+      launchUrl += "&amp;group_id=" + groupId;
     }
   }
   String launchText = b2Context.getResourceString("page.module.view.launch") + " " + tool.getName();
@@ -79,13 +85,6 @@
   pageContext.setAttribute("target", target);
 %>
 <bbNG:includedPage>
-  <bbNG:cssBlock>
-    <style type="text/css">
-      span.itemTitle a {
-        display: inline;
-      }
-    </style>
-  </bbNG:cssBlock>
 <div class="eudModule">
   <div class="eudModule-inner">
     <div class="portletBlock" style="border-top-width: 0">
@@ -109,9 +108,54 @@
   }
   if (listItems.size() > 0) {
 %>
-    <bbNG:collapsibleList id="id_items" isDynamic="false" listItems="<%=listItems%>">
-    </bbNG:collapsibleList>
+  <ul class="stepPanels">
 <%
+    pageContext.setAttribute("prefix", b2Context.getHandle());
+    CollapsibleListItem item;
+    String launch;
+    for (Iterator<CollapsibleListItem> iter=listItems.iterator(); iter.hasNext();) {
+      item = iter.next();
+      pageContext.setAttribute("item", item);
+      pageContext.setAttribute("id", b2Context.getHandle() + item.getId());
+      if (item.getUrl() != null) {
+        launch = "&nbsp;<a href=\"" + launchUrl + "&amp;n=" + item.getId() + "\" style=\"display: inline;\"><img src=\"" + b2Context.getPath() + "images/external-ltr.png\" /></a>";
+      } else {
+        launch = "";
+      }
+      pageContext.setAttribute("launch", launch);
+      if (!item.getExpandOnPageLoad()) {
+%>
+    <li>
+     <div class="panelTitle">
+        <a href="#" style="display: inline;" onclick="document.getElementById('${id}').style.display=(document.getElementById('${id}').style.display == 'none')?'block':'none'; return false;"><img src="/images/db/p.gif" alt="Expand" align="absmiddle" border="0">&nbsp;${item.title}</a>${launch}
+      </div>
+      <div style="display: none;" class="stepPanel" id="${id}">
+        ${item.body}
+      </div>
+    </li>
+<%
+      } else {
+%>
+    <li>
+      <div class="panelTitle">
+        ${item.title}${launch}
+      </div>
+<%
+        if ((item.getBody() != null) && (item.getBody().length() > 0)) {
+%>
+      <div style="display: block;" class="stepPanel">
+        ${item.body}
+      </div>
+<%
+        }
+%>
+    </li>
+<%
+      }
+%>
+  </ul>
+<%
+    }
   } else {
 %>
 ${content}
@@ -120,6 +164,7 @@ ${content}
   if (showLaunch) {
 %>
     <div class="blockGroups" style="text-align: center;">
+      <br />
       <bbNG:button url="${launchUrl}" label="${launchText}" target="${target}" />
     </div>
 <%

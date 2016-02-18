@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -48,12 +49,20 @@ import blackboard.platform.security.CourseRole;
 import blackboard.data.role.PortalRole;
 import blackboard.portal.data.Module;
 import blackboard.persist.Id;
+import blackboard.persist.course.CourseDbLoader;
 import blackboard.persist.content.ContentDbLoader;
 import blackboard.platform.user.MyPlacesUtil;
 import blackboard.platform.persistence.PersistenceServiceFactory;
 import blackboard.persist.BbPersistenceManager;
 import blackboard.persist.PersistenceException;
+import blackboard.platform.config.BbConfig;
+import blackboard.platform.config.ConfigurationServiceFactory;
 import blackboard.platform.context.Context;
+import blackboard.util.GeneralUtil;
+import blackboard.util.LocaleUtil;
+import blackboard.util.UrlUtil;
+import blackboard.platform.branding.BrandingUtil;
+import blackboard.platform.branding.PersonalStyleHelper;
 
 import blackboard.platform.institutionalhierarchy.service.Node;
 import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
@@ -68,21 +77,22 @@ public class LtiMessage {
 
   protected User user = null;
   protected Course course = null;
+  protected Content content = null;
   public Tool tool = null;
   protected String toolPrefix = null;
   protected String settingPrefix = null;
   protected Properties props = null;
   private List<Map.Entry<String, String>> params = null;
 
-  public LtiMessage(B2Context b2Context, String toolId, Module module) {
+  public LtiMessage(B2Context b2Context, Tool tool, Module module) {
 
     Context context = b2Context.getContext();
 
-    this.tool = new Tool(b2Context, toolId);
+    this.tool = tool;
     this.toolPrefix = Constants.TOOL_PARAMETER_PREFIX + ".";
     this.settingPrefix = "";
     if (!tool.getByUrl()) {
-      this.toolPrefix += toolId + ".";
+      this.toolPrefix += this.tool.getId() + ".";
       this.settingPrefix = this.toolPrefix;
     } else {
       String domainId = "";
@@ -101,18 +111,8 @@ public class LtiMessage {
     ((UserWrapper)this.user).setPseudoDomain(tool.getEncryptEmailDomain());
     ((UserWrapper)this.user).setRandomEmailName(tool.isRandomEmailName());
 
-    String userId;
     if (this.tool.getDoSendUserId()) {
-      String userIdType = this.tool.getUserIdType();
-      if (userIdType.equals(Constants.DATA_USERNAME)) {
-        userId = this.user.getUserName();
-      } else if (userIdType.equals(Constants.DATA_PRIMARYKEY)) {
-        userId = this.user.getId().toExternalString();
-      } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
-        userId = this.user.getStudentId();
-      } else {
-        userId = this.user.getBatchUid();
-      }
+      String userId = Utils.getLTIUserId(this.tool.getUserIdType(), this.user);
       if (userId !=  null) {
         this.props.setProperty("user_id", userId);
       }
@@ -145,53 +145,85 @@ public class LtiMessage {
       this.course = context.getCourse();
     }
     String roles = "";
-    boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+    boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
     boolean sendAdminRole = this.tool.getSendAdministrator().equals(Constants.DATA_TRUE);
+    boolean emulateCore = this.tool.getDoEmulateCore();
+    String contextId = "";
+    String resourceId = "";
     if (this.course != null) {
       String contentId = b2Context.getRequestParameter("content_id", "");
-      String resourceId;
+      if (contentId.equals("@X@content.pk_string@X@")) {
+        contentId = "";
+      }
       this.props.setProperty("context_type", "CourseSection");
       String contextIdType = this.tool.getContextIdType();
       if (contextIdType.equals(Constants.DATA_PRIMARYKEY)) {
         resourceId = this.course.getId().toExternalString();
       } else if (contextIdType.equals(Constants.DATA_COURSEID)) {
         resourceId = this.course.getCourseId();
+      } else if (contextIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
+        resourceId = this.course.getUuid();
       } else {
         resourceId = this.course.getBatchUid();
       }
-      if (this.tool.getDoSendContextId() && (resourceId !=  null)) {
-        this.props.setProperty("context_id", resourceId);
-      }
-      if (this.tool.getDoSendContextTitle()) {
+      if (b2Context.getContext().hasGroupContext()) {
+        this.props.setProperty("context_type", "Group");
+        if (resourceId !=  null) {
+          resourceId += Constants.PREFIX_GROUP + b2Context.getContext().getGroupId().toExternalString();
+        }
+        if (this.tool.getDoSendContextTitle()) {
+          this.props.setProperty("context_title", Utils.stripTags(b2Context.getContext().getGroup().getTitle()));
+          this.props.setProperty("context_label", b2Context.getContext().getGroup().getTitle());
+        }
+      } else if (this.tool.getDoSendContextTitle()) {
         this.props.setProperty("context_title", Utils.stripTags(course.getTitle()));
         this.props.setProperty("context_label", course.getCourseId());
       }
+      if (this.tool.getDoSendContextId() && (resourceId != null)) {
+        this.props.setProperty("context_id", resourceId);
+      }
       String title = tool.getName();
+      String description = "";
       if (contentId.length() > 0) {
         resourceId += contentId;
         BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
         try {
           Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
           ContentDbLoader courseDocumentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
-          Content content = courseDocumentLoader.loadById(id);
-          title = content.getTitle();
-          this.props.setProperty("resource_link_description", Utils.stripTags(content.getBody().getText()));
+          this.content = courseDocumentLoader.loadById(id);
+          title = this.content.getTitle();
+          description = this.content.getBody().getText();
         } catch (PersistenceException e) {
         }
+      } else if (b2Context.getContext().hasGroupContext()) {
+        title = b2Context.getContext().getGroup().getTitle();
+        description = b2Context.getContext().getGroup().getDescription().getText();
+      } else if (module != null) {
+        resourceId = Constants.PREFIX_MODULE + resourceId; // + module.getId().toExternalString();
+        title = module.getTitle();
+        description = module.getDescriptionFormatted().getText();
       }
-      this.props.setProperty("resource_link_id", resourceId);
       this.props.setProperty("resource_link_title", Utils.stripTags(title));
+      if (description.length() > 0) {
+        this.props.setProperty("resource_link_description", Utils.stripTags(description));
+      }
       if (this.tool.getDoSendContextSourcedid()) {
         this.props.setProperty("lis_course_offering_sourcedid", this.course.getBatchUid());
         this.props.setProperty("lis_course_section_sourcedid", this.course.getBatchUid());
       }
 
-      CourseMembership.Role role = Utils.getRole(context.getCourseMembership().getRole(), systemRolesOnly);
-
       if (this.tool.getDoSendRoles()) {
-        roles = Utils.getCRoles(this.tool.getRole(role.getIdentifier()),
-            sendAdminRole && this.user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN));
-        if (this.tool.getDoSendCRoles()) {
+        CourseMembership cm = context.getCourseMembership();
+        CourseMembership.Role role = null;
+        String roleId;
+        if (cm != null) {
+          role = Utils.getRole(cm.getRole(), systemRolesOnly);
+          roleId = role.getIdentifier();
+        } else {
+          roleId = CourseRole.Ident.Guest.getIdentifier();
+        }
+        roles = Utils.getCRoles(this.tool.getRole(roleId)); //,
+        if (this.tool.getDoSendCRoles() && (role != null)) {
           CourseRole cRole = role.getDbRole();
           if (systemRolesOnly && cRole.isRemovable()) {
             if (cRole.isActAsInstructor()) {
@@ -203,11 +235,48 @@ public class LtiMessage {
           this.props.setProperty("ext_context_roles", cRole.getCourseName());
         }
       }
+    } else {
+      try {
+        contextId = CourseDbLoader.Default.getInstance().loadSystemCourse().getId().toExternalString();
+        resourceId = contextId;
+      } catch (PersistenceException ex) {
+        Logger.getLogger(LtiMessage.class.getName()).log(Level.SEVERE, null, ex);
+      }
+      if (module != null) {
+        resourceId = Constants.PREFIX_MODULE + module.getId().toExternalString();
+      }
     }
+    this.props.setProperty("resource_link_id", resourceId);
     if (this.tool.getDoSendRoles()) {
+      if (this.tool.getDoSendORoles()) {
+        List<User> observed = Utils.getObservedUsers(this.user.getId(), this.course.getId());
+        if (!observed.isEmpty()) {
+          if (roles.length() > 0) {
+            roles += ",";
+          }
+          roles += Constants.ROLE_MENTOR;
+          StringBuilder mentees = new StringBuilder();
+          User aUser;
+          String userId;
+          for (Iterator<User> iter = observed.iterator(); iter.hasNext();) {
+            aUser = iter.next();
+            userId = Utils.getLTIUserId(this.tool.getUserIdType(), aUser);
+            if (userId != null) {
+              mentees.append(",").append(Utils.urlEncode(userId));
+            }
+          }
+          if (mentees.length() > 0) {
+            this.props.setProperty("role_scope_mentor", mentees.substring(1));
+          }
+        }
+      }
+      if ((roles.length() <= 0) && this.tool.getSendGuest().equals(Constants.DATA_TRUE)) {
+        roles = Constants.IROLE_GUEST;
+      }
       if (sendAdminRole) {
         roles = Utils.addAdminRole(roles, this.user);
       }
+      roles = Utils.addPreviewRole(roles, this.user);
       this.props.setProperty("roles", roles);
       if (this.tool.getDoSendIRoles()) {
         List<PortalRole> iRoles = Utils.getInstitutionRoles(systemRolesOnly, this.user);
@@ -222,49 +291,113 @@ public class LtiMessage {
         this.props.setProperty("ext_institution_roles", iRolesString.toString());
       }
     }
-    if (module != null) {
+    if (this.course == null) {
       if (this.tool.getDoSendContextId() && B2Context.getIsVersion(9, 1, 8)) {
-        String contextId = "";
         Id id = b2Context.getContext().getUserId();
         if (id != Id.UNSET_ID) {
           try {
             List<Node> nodes = NodeManagerFactory.getAssociationManager().loadUserAssociatedNodes(id);
             if (nodes.size() > 0) {
-              contextId = nodes.get(0).getIdentifier();
+              contextId += nodes.get(0).getIdentifier();
             }
           } catch (PersistenceException e) {
           }
         }
-        if (contextId.length() > 0) {
-          this.props.setProperty("context_id", contextId);
-        }
+      }
+      if (contextId.length() > 0) {
+        this.props.setProperty("context_id", contextId);
       }
       this.props.setProperty("context_type", "Group");
-      this.props.setProperty("resource_link_id", module.getId().toExternalString());
-      this.props.setProperty("resource_link_title", Utils.stripTags(module.getTitle()));
-      this.props.setProperty("resource_link_description", Utils.stripTags(module.getDescriptionFormatted().getText()));
       if (tool.getDoSendRoles()) {
-        boolean systemIRolesOnly = !b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+        boolean systemIRolesOnly = !b2Context.getSetting(Constants.TOOL_INSTITUTION_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
         List<PortalRole> iRoles = Utils.getInstitutionRoles(systemIRolesOnly, this.user);
         sendAdminRole = b2Context.getSetting(false, true, Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ADMINISTRATOR, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
         roles = Utils.getIRoles(b2Context, iRoles, sendAdminRole && this.user.getSystemRole().equals(User.SystemRole.SYSTEM_ADMIN));
         if (sendAdminRole) {
           roles = Utils.addAdminRole(roles, this.user);
         }
+        roles = Utils.addPreviewRole(roles, this.user);
+        this.props.remove("role_scope_mentor");
+        List<User> observed = Utils.getObservedUsers(this.user.getId(), null);
+        if (!observed.isEmpty()) {
+          if (roles.length() > 0) {
+            roles += ",";
+          }
+          roles += Constants.ROLE_MENTOR;
+          StringBuilder mentees = new StringBuilder();
+          User aUser;
+          String userId;
+          for (Iterator<User> iter = observed.iterator(); iter.hasNext();) {
+            aUser = iter.next();
+            userId = Utils.getLTIUserId(this.tool.getUserIdType(), aUser);
+            if (userId !=  null) {
+              mentees.append(",").append(Utils.urlEncode(userId));
+            }
+          }
+          if (mentees.length() > 0) {
+            this.props.setProperty("role_scope_mentor", mentees.substring(1));
+          }
+        }
         this.props.setProperty("roles", roles);
       }
+    }
+    if (module != null) {
+      this.props.setProperty("resource_link_title", Utils.stripTags(module.getTitle()));
+      String description = module.getDescriptionFormatted().getText();
+      if (description.length() > 0) {
+        this.props.setProperty("resource_link_description", Utils.stripTags(description));
+      }
+    } else if (this.course == null) {
+      if (this.tool.getDoSendContextTitle()) {
+        this.props.setProperty("context_title", Utils.stripTags(ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_NAME, "")));
+        this.props.setProperty("context_label", ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_TYPE, ""));
+      }
+      String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
+      if (sourcePage.equals(Constants.TOOL_USERTOOL)) {
+        resourceId = Constants.PREFIX_USER_TOOL + resourceId;
+      }
+      this.props.setProperty("resource_link_id", resourceId);
+      this.props.setProperty("resource_link_title", Utils.stripTags(this.tool.getName()));
+      String description = this.tool.getDescription();
+      if (description.length() > 0) {
+        this.props.setProperty("resource_link_description", Utils.stripTags(description));
+      }
+
     }
 // Consumer
     String css = this.tool.getLaunchCSS();
     if (css.length() > 0) {
-      this.props.setProperty("ext_launch_presentation_css_url", css);
       this.props.setProperty("launch_presentation_css_url", css);
     }
 
-    String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
-    this.props.setProperty("ext_lms", Constants.LTI_LMS + "-" + version[0] + "." + version[1] + "." + version[2]);
-    this.props.setProperty("tool_consumer_info_product_family_code", Constants.LTI_LMS);
-    this.props.setProperty("tool_consumer_info_version", version[0] + "." + version[1] + "." + version[2]);
+    if (emulateCore) {
+      if (b2Context.getRequest() != null) {
+        List<String> cssUrls = BrandingUtil.getCssUrls(b2Context.getRequest(), this.user, this.course, null,
+           PersonalStyleHelper.isHighContrast(b2Context.getRequest()), !LocaleUtil.isLeftToRight());
+        if (cssUrls.size() > 0) {
+          StringBuilder cssUrl = new StringBuilder();
+          String url;
+          String sep = "";
+          for (Iterator<String> iter = cssUrls.iterator(); iter.hasNext();) {
+            url = iter.next();
+            cssUrl.append(sep).append(UrlUtil.calculateFullUrl(b2Context.getRequest(), url));
+            sep = ",";
+          }
+          this.props.setProperty("ext_launch_presentation_css_url", cssUrl.toString());
+        }
+      }
+      if (B2Context.getIsVersion(9, 1, 201510)) {
+        this.props.setProperty("ext_launch_id", UUID.randomUUID().toString());
+      }
+      this.props.setProperty("ext_lms", "bb-" + B2Context.getVersionNumber(""));
+      this.props.setProperty("tool_consumer_info_product_family_code", "Blackboard Learn");
+      this.props.setProperty("tool_consumer_info_version", B2Context.getVersionNumber(""));
+    } else {
+      String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
+      this.props.setProperty("ext_lms", Constants.LTI_LMS + "-" + version[0] + "." + version[1] + "." + version[2]);
+      this.props.setProperty("tool_consumer_info_product_family_code", Constants.LTI_LMS);
+      this.props.setProperty("tool_consumer_info_version", version[0] + "." + version[1] + "." + version[2]);
+    }
 
     String resource = this.tool.getResourceUrl();
     if (resource.length() > 0) {
@@ -279,12 +412,23 @@ public class LtiMessage {
     if ((locale == null) || (locale.length() <= 0)) {
       locale = (String)context.getAttribute(Constants.LOCALE_ATTRIBUTE);
     }
+    locale = locale.replaceAll("_", "-");
     this.props.setProperty("launch_presentation_locale", locale);
 
-    this.props.setProperty("tool_consumer_instance_guid", this.tool.getLaunchGUID());
-    this.props.setProperty("tool_consumer_instance_name", b2Context.getSetting(Constants.CONSUMER_NAME_PARAMETER, ""));
-    this.props.setProperty("tool_consumer_instance_description", b2Context.getSetting(Constants.CONSUMER_DESCRIPTION_PARAMETER, ""));
+    if (b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + this.tool.getId() + "." + Constants.TOOL_CONSUMER_GUID, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+      this.props.setProperty("tool_consumer_instance_guid", GeneralUtil.getSystemInstallationId());
+    } else {
+      this.props.setProperty("tool_consumer_instance_guid", this.tool.getLaunchGUID());
+    }
+    this.props.setProperty("tool_consumer_instance_name", b2Context.getSetting(Constants.CONSUMER_NAME_PARAMETER,
+//       ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_NAME, "")));
+       GeneralUtil.getSystemInstanceName()));
+    this.props.setProperty("tool_consumer_instance_description", b2Context.getSetting(Constants.CONSUMER_DESCRIPTION_PARAMETER,
+       ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_TYPE, "")));
     String email = b2Context.getSetting(Constants.CONSUMER_EMAIL_PARAMETER, "");
+    if (email.length() <= 0) {
+      email = GeneralUtil.getSystemAdminEmail();
+    }
     if (email.length() > 0) {
       this.props.setProperty("tool_consumer_instance_contact_email", email);
     }
@@ -292,18 +436,59 @@ public class LtiMessage {
     this.props.setProperty("tool_consumer_instance_url", b2Context.getServerUrl());
 
     String target = "frame";
+    boolean dimensions = false;
     if (this.tool.getOpenIn().equals(Constants.DATA_WINDOW)) {
       target = "window";
     } else if (this.tool.getOpenIn().equals(Constants.DATA_IFRAME)) {
       target = "iframe";
+      dimensions = true;
+    } else if (this.tool.getOpenIn().equals(Constants.DATA_POPUP)) {
+      target = "popup";
+      dimensions = true;
+    } else if (this.tool.getOpenIn().equals(Constants.DATA_OVERLAY)) {
+      target = "overlay";
+      dimensions = true;
     }
     this.props.setProperty("launch_presentation_document_target", target);
+    if (dimensions) {
+      if (this.tool.getWindowWidth().length() > 0) {
+        this.props.setProperty("launch_presentation_width", this.tool.getWindowWidth());
+      }
+      if (this.tool.getWindowHeight().length() > 0) {
+        this.props.setProperty("launch_presentation_height", this.tool.getWindowHeight());
+      }
+    }
 
   }
 
-  public void signParameters(String url, String consumerKey, String secret) {
+  public String getProperty(String name, String defaultValue) {
+
+    if (this.props.containsKey(name)) {
+      defaultValue = this.props.getProperty(name);
+    }
+
+    return defaultValue;
+
+  }
+
+  public void setProperty(String name, String value) {
+
+    if (value != null) {
+      this.props.setProperty(name, value);
+    } else {
+      this.props.remove(name);
+    }
+
+  }
+
+  public void signParameters(String url, String consumerKey, String secret, String signaturemethod) {
 
     this.props.setProperty("oauth_callback", Constants.OAUTH_CALLBACK);
+    if (signaturemethod.equals(Constants.DATA_SIGNATURE_METHOD_SHA256)) {
+      this.props.setProperty("oauth_signature_method", "HMAC-SHA256");
+    } else {
+      this.props.setProperty("oauth_signature_method", "HMAC-SHA1");
+    }
     OAuthMessage oAuthMessage = new OAuthMessage("POST", url, this.props.entrySet());
     OAuthConsumer oAuthConsumer = new OAuthConsumer(Constants.OAUTH_CALLBACK, consumerKey, secret, null);
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);

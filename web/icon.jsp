@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,28 +18,67 @@
 
     Contact: stephen@spvsoftwareproducts.com
 --%>
-<%@page import="org.oscelot.blackboard.lti.Constants,
+<%@page import="org.apache.commons.codec.binary.Base64,
+                org.oscelot.blackboard.lti.Constants,
                 org.oscelot.blackboard.lti.Tool,
+                org.oscelot.blackboard.lti.Utils,
                 com.spvsoftwareproducts.blackboard.utils.B2Context"
         errorPage="error.jsp"%>
 <%
   B2Context b2Context = new B2Context(request);
 
+  String icon;
   String toolId = b2Context.getSetting(false, true,
      Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ID,
      b2Context.getRequestParameter(Constants.TOOL_ID, ""));
-  Tool tool = new Tool(b2Context, toolId);
-  String icon = tool.getDisplayIcon();
-  if (icon.length() <= 0) {
-    tool = tool.getDomain();
-    if (tool != null) {
-      icon = tool.getDisplayIcon();
+  if (toolId.length() <= 0) {
+    icon = b2Context.getSetting(false, true,
+       Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_ICON, "");
+    boolean disabled = false;
+    if (icon.length() <= 0) {
+      Tool domain = Utils.urlToDomain(b2Context, b2Context.getSetting(false, true,
+         Constants.TOOL_PARAMETER_PREFIX + "." + Constants.TOOL_URL));
+      if (domain != null) {
+        disabled = !domain.getIsEnabled().equals(Constants.DATA_TRUE);
+        icon = domain.getDisplayIcon();
+      }
+    }
+    if (icon.length() <= 0) {
+      if (!disabled) {
+        icon = "images/lti.gif";
+      } else {
+        icon = "images/lti_disabled.gif";
+      }
+    }
+  } else {
+    Tool tool = new Tool(b2Context, toolId);
+    icon = tool.getDisplayIcon();
+    if (icon.length() <= 0) {
+      Tool domain = tool.getDomain();
+      if (domain != null) {
+        icon = domain.getDisplayIcon();
+      }
+    }
+    if (icon.length() <= 0) {
+      if (tool.getIsEnabled().equals(Constants.DATA_TRUE)) {
+        icon = "images/lti.gif";
+      } else {
+        icon = "images/lti_disabled.gif";
+      }
     }
   }
 
-  if (icon.length() <= 0) {
-    icon = "images/lti.gif";
+  if (icon.startsWith("data:")) {
+    String[] parts = icon.substring(5).split(",");
+    icon = parts[1];
+    parts = parts[0].split(";");
+    response.setContentType(parts[0]);
+    if (parts[parts.length - 1].equals("base64")) {
+      response.getOutputStream().write(Base64.decodeBase64(icon.getBytes()));
+    } else {
+      response.getOutputStream().write(icon.getBytes());
+    }
+  } else {
+    response.sendRedirect(icon);
   }
-
-  response.sendRedirect(icon);
 %>

@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
     Contact: stephen@spvsoftwareproducts.com
 --%>
+<%@page import="com.spvsoftwareproducts.blackboard.utils.B2Context"%>
 <%
-  System.err.println("BasicLTI B2 removed");
+  B2Context.log(false, "BasicLTI B2 uninstalled");
 %>

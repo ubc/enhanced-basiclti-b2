@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.domains.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.domains";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   ToolList domainList = new ToolList(b2Context, true, true);
   String sourcePage = b2Context.getRequestParameter(Constants.PAGE_PARAMETER_NAME, "");
@@ -53,15 +56,16 @@
   <bbNG:jsBlock>
 <script language="javascript" type="text/javascript">
 //<![CDATA[
-  function doAction(value) {
-    document.frmDomains.action.value = value;
-    document.frmDomains.submit();
+function doAction(value) {
+  document.frmDomains.action.value = value;
+  document.frmDomains.submit();
+}
+
+function doDelete() {
+  if (confirm('${bundle['page.system.tools.action.confirm']}')) {
+    doAction('delete');
   }
-  function doDelete() {
-    if (confirm('${bundle['page.system.tools.action.confirm']}')) {
-      doAction('delete');
-    }
-  }
+}
 //]]>
 </script>
   </bbNG:jsBlock>
@@ -77,7 +81,7 @@
       <bbNG:actionButton title="${bundle['page.system.tools.button.services']}" url="services.jsp?${query}" primary="false" />
     </bbNG:actionControlBar>
   </bbNG:pageHeader>
-  <bbNG:form name="frmDomains" method="post" action="toolsaction?${query}">
+  <bbNG:form name="frmDomains" method="post" action="toolsaction?${query}" isSecure="true" nonceId="<%=formName%>">
     <input type="hidden" name="<%=Constants.ACTION%>" value="" />
     <input type="hidden" name="<%=Constants.DOMAIN_PARAMETER_PREFIX%>" value="true" />
     <bbNG:inventoryList collection="<%=domainList.getList()%>" objectVar="tool" className="org.oscelot.blackboard.lti.Tool"

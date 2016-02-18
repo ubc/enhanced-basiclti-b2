@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.service.title']}" entitlement="system.admin.VIEW">
 <%
+  String formName = "page.system.service";
+  Utils.checkForm(request, formName);
+
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "services.jsp?" + query;
@@ -110,7 +113,7 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.system.service.title']}${titleSuffix}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="service.jsp?${query}" name="serviceForm" method="post" onsubmit="return validateForm();">
+  <bbNG:form action="service.jsp?${query}" name="serviceForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.system.service.step1.title']}" instructions="${bundle['page.system.service.step1.instructions']}">
 <%

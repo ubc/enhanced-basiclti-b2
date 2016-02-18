@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
                 org.oscelot.blackboard.lti.Tool"
         errorPage="error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:learningSystemPage title="${bundle['page.course_tool.tools.title']}">
+<bbNG:learningSystemPage title="${bundle['page.course_tool.tools.title']}" entitlement="system.generic.VIEW">
 <%
   B2Context b2Context = new B2Context(request);
   ToolList toolList = new ToolList(b2Context, false);
@@ -36,7 +36,7 @@
   pageContext.setAttribute("bundle", b2Context.getResourceStrings());
   pageContext.setAttribute("actionQuery", actionQuery);
   pageContext.setAttribute("id", Constants.TOOL_ID);
-  pageContext.setAttribute("actionUrl", "tool.jsp");
+  pageContext.setAttribute("actionUrl", b2Context.getPath() + "tool.jsp");
 %>
   <bbNG:pageHeader instructions="${bundle['page.course_tool.tools.instructions']}">
     <bbNG:breadcrumbBar>

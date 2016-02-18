@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ public class Controller extends HttpServlet {
     OAuthMessage message = OAuthServlet.getMessage(request, null);
     Map<String,String> authHeaders = Utils.getAuthorizationHeaders(message);
     String consumerKey = authHeaders.get("oauth_consumer_key");
+    String signatureMethod = authHeaders.get("oauth_signature_method");
 
     String xml = message.readBodyAsString();
     String actionName = null;
@@ -130,7 +131,7 @@ public class Controller extends HttpServlet {
       }
     }
     if (ok) {
-      ok = Utils.checkBodyHash(message.getAuthorizationHeader(null), xml);
+      ok = Utils.checkBodyHash(message.getAuthorizationHeader(null), signatureMethod, xml);
       if (!ok) {
         description = "svc.codeminor.bodyhash";
       }
@@ -161,28 +162,6 @@ public class Controller extends HttpServlet {
     return "Extension services";
   }
 
-  private Context initContext(String course, String content) {
-
-    Context ctx = ContextManagerFactory.getInstance().getContext();
-    Id vhId = Id.UNSET_ID;
-    Id courseId = Id.UNSET_ID;
-    Id contentId = Id.UNSET_ID;
-    try {
-      vhId = ctx.getVirtualHost().getId();
-      if (course != null) {
-        courseId = Id.generateId(Course.DATA_TYPE, course);
-      }
-      if (content != null) {
-        contentId = Id.generateId(Content.DATA_TYPE, content);
-      }
-    } catch (PersistenceException e) {
-    }
-
-    return ContextManagerFactory.getInstance().setContext(vhId, courseId, Id.UNSET_ID,
-       Id.UNSET_ID, contentId);
-
-  }
-
   private boolean getServicesData(String key, String param) {
 
     String[] data = param.split(Constants.HASH_SEPARATOR);
@@ -199,11 +178,23 @@ public class Controller extends HttpServlet {
       }
       toolId = data[3];
       ok = (courseId.length() > 0);
+      if (!ok) {
+        B2Context.log(true, "getServicesData - no courseId: " + param);
+      }
     }
     if (ok) {
-      this.b2Context.setContext(initContext(courseId, contentId));
-      this.tool = new Tool(this.b2Context, toolId);
+      this.b2Context.setContext(Utils.initContext(courseId, contentId));
+      boolean nodeSupport = this.b2Context.getSetting(Constants.NODE_CONFIGURE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
+      if (nodeSupport) {
+        this.b2Context.setInheritSettings(this.b2Context.getSetting(Constants.INHERIT_SETTINGS, Constants.DATA_FALSE).equals(Constants.DATA_TRUE));
+      } else {
+        this.b2Context.clearNode();
+      }
+      this.tool = Utils.getTool(this.b2Context, toolId);
       ok = key.equals(this.tool.getLaunchGUID());
+      if (!ok) {
+        B2Context.log(true, "getServicesData - invalid consumer key: " + key + "; expected " + tool.getLaunchGUID());
+      }
     }
     if (ok) {
       Encryption encryptInstance = new Encryption(tool.getEncryptKey());
@@ -219,6 +210,9 @@ public class Controller extends HttpServlet {
         this.servicesData.add(item);
       }
       ok = Utils.getHash(hash.toString(), this.tool.getSendUUID()).equals(Utils.decodeHash(data[0]));
+      if (!ok) {
+        B2Context.log(true, "getServicesData - invalid hash");
+      }
     }
 
     return ok;
@@ -236,16 +230,16 @@ public class Controller extends HttpServlet {
     OAuthAccessor oAuthAccessor = new OAuthAccessor(oAuthConsumer);
     OAuthValidator validator = new SimpleOAuthValidator();
     try {
-    	validator.validateMessage(message, oAuthAccessor);
+      message.validateMessage(oAuthAccessor, validator);
     } catch (IOException e) {
-      Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
       ok = false;
+      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     } catch (URISyntaxException e) {
-      Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
       ok = false;
+      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     } catch (OAuthException e) {
-      Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, "checkSignature error for " + consumerKey + "/" + secret, e);
       ok = false;
+      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     }
 
     return ok;

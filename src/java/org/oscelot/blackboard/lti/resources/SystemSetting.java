@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ import org.oscelot.blackboard.lti.services.Setting;
 public class SystemSetting extends Resource {
 
   private static final String ID = "ToolProxySettings";
-  private static final String TEMPLATE = "/ToolProxy/{tool_proxy_guid}/custom";
+  private static final String TEMPLATE = "/ToolProxy/{tool_proxy_guid}";
   private static List<String> FORMATS = new ArrayList<String>() {{
     add("application/vnd.ims.lti.v2.toolsettings+json");
     add("application/vnd.ims.lti.v2.toolsettings.simple+json");

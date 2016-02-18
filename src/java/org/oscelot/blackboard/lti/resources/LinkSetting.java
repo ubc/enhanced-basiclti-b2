@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ import org.oscelot.blackboard.lti.Constants;
 import org.oscelot.blackboard.lti.services.Service;
 import org.oscelot.blackboard.lti.services.Setting;
 import org.oscelot.blackboard.lti.resources.settings.ToolSettingsContainerV1;
+import org.oscelot.blackboard.lti.Utils;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
@@ -51,7 +52,7 @@ import com.spvsoftwareproducts.blackboard.utils.B2Context;
 public class LinkSetting extends Resource {
 
   private static final String ID = "LtiLinkSettings";
-  private static final String TEMPLATE = "/links/{link_id}/custom";
+  private static final String TEMPLATE = "/links/{link_id}";
   private static List<String> FORMATS = new ArrayList<String>() {{
     add("application/vnd.ims.lti.v2.toolsettings+json");
     add("application/vnd.ims.lti.v2.toolsettings.simple+json");
@@ -247,7 +248,7 @@ public class LinkSetting extends Resource {
     if ((course != null) && (content != null)) {
       String url = this.getEndpoint();
       String contentId = content.getId().toExternalString();
-      if (!content.getContentHandler().equals(Constants.RESOURCE_HANDLE)) {
+      if (!content.getContentHandler().equals(Utils.getResourceHandle(b2Context, null))) {
         contentId += ":" + b2Context.getRequestParameter(Constants.TOOL_ID, "");
       }
       url = url.replaceAll("\\{link_id\\}", contentId);

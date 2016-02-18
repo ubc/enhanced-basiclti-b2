@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,21 +33,32 @@
 <%
   B2Context b2Context = new B2Context(request);
   b2Context.setIgnoreContentContext(true);
-  b2Context.setIgnoreCourseContext(true);
   String toolId = b2Context.getRequestParameter(Constants.TOOL_ID, "");
-  LtiMessage message = new ConfigMessage(b2Context, toolId);
+  Tool tool = new Tool(b2Context, toolId);
+  LtiMessage message = new ConfigMessage(b2Context, tool);
   String toolURL = message.tool.getLaunchUrl();
-  message.signParameters(toolURL, message.tool.getLaunchGUID(), message.tool.getLaunchSecret());
+  message.signParameters(toolURL, message.tool.getLaunchGUID(), message.tool.getLaunchSecret(),
+     tool.getLaunchSignatureMethod());
   List<Map.Entry<String, String>> params = message.getParams();
   pageContext.setAttribute("bundle", b2Context.getResourceStrings());
+  pageContext.setAttribute("blocked", String.format(b2Context.getResourceString("page.blocked.frame"), tool.getName()));
 %>
 <html>
 <head>
 <script language="javascript" type="text/javascript">
-function doOnLoad() {
+//<![CDATA[
+function osc_unblock() {
+  var el = document.getElementById('id_blocked');
+  el.style.display = 'block';
+}
+
+function osc_doOnLoad() {
+  window.setTimeout(osc_unblock, 10000);
   document.forms[0].submit();
 }
-window.onload=doOnLoad;
+
+window.onload=osc_doOnLoad;
+//]]>
 </script>
 </head>
 <body>
@@ -62,6 +73,10 @@ window.onload=doOnLoad;
 <%
   }
 %>
+<p id="id_blocked" style="display: none; color: red; font-weight: bold; margin-top: 1em; padding-top: 1em;">
+  ${blocked}<br /><br />
+  <input type="submit" value="${bundle['page.system.tools.action.open']}" />
+</p>
 </form>
 </body>
 </html>

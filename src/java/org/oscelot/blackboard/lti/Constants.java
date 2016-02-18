@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@ import java.util.ArrayList;
 public class Constants {
 
   public static final String LAUNCH_MESSAGE_TYPE = "basic-lti-launch-request";
+  public static final String CONTENT_ITEM_MESSAGE_TYPE = "ContentItemSelectionRequest";
+  public static final String CONTENT_ITEM_MESSAGE_RESPONSE = "ContentItemSelection";
   public static final String CONFIG_MESSAGE_TYPE = "ConfigureLaunchRequest";
   public static final String DASHBOARD_MESSAGE_TYPE = "DashboardRequest";
   public static final String LTI_VERSION = "LTI-1p0";
@@ -45,13 +47,15 @@ public class Constants {
   public static final String LTI_LMS_SUPPLIER_NAME = "Blackboard Inc";
 
 // Content handler constants
-  public static final String RESOURCE_HANDLE = "resource/x-osc-basiclti";
   public static final String DEFAULT_TITLE = "Untitled";
 
 //  Systemwide setting parameter names
   public static final String CONSUMER_NAME_PARAMETER = "ConsumerName";
   public static final String CONSUMER_DESCRIPTION_PARAMETER = "ConsumerDescription";
   public static final String CONSUMER_EMAIL_PARAMETER = "ConsumerEmail";
+  public static final String NODE_CONFIGURE = "nodes";
+  public static final String B2_VERSION = "b2_version";
+  public static final String DEBUG_MODE = "debugmode";
 
 // Default tool ID
   public static final String DEFAULT_TOOL_ID = "default";
@@ -70,16 +74,22 @@ public class Constants {
   public static final String TOOL_URL = "url";
   public static final String TOOL_GUID = "guid";
   public static final String TOOL_SECRET = "secret";
+  public static final String TOOL_SIGNATURE_METHOD = "signaturemethod";
   public static final String TOOL_CSS = "css";
   public static final String TOOL_ICON = "icon";
+  public static final String TOOL_ICON_DISABLED = "icondisabled";
   public static final String TOOL_CONTEXT_ID = "contextid";
   public static final String TOOL_CONTEXTIDTYPE = "contextidtype";
   public static final String TOOL_CONTEXT_SOURCEDID = "contextsourcedid";
   public static final String TOOL_CONTEXT_TITLE = "contexttitle";
+  public static final String TOOL_EXT_COPY_OF = "ext_copyof";
   public static final String TOOL_AVATAR = "avatar";
+  public static final String TOOL_RENDER = "render";
   public static final String TOOL_ROLES = "roles";
   public static final String TOOL_EXT_IROLES = "ext_iroles";
   public static final String TOOL_EXT_CROLES = "ext_croles";
+  public static final String TOOL_GUEST = "guest";
+  public static final String TOOL_OBSERVER_ROLES = "oroles";
   public static final String TOOL_USERID = "userid";
   public static final String TOOL_USERIDTYPE = "useridtype";
   public static final String TOOL_USER_SOURCEDID = "usersourcedid";
@@ -87,6 +97,8 @@ public class Constants {
   public static final String TOOL_EMAIL = "email";
   public static final String TOOL_OPEN_IN = "openin";
   public static final String TOOL_WINDOW_NAME = "windowname";
+  public static final String TOOL_WINDOW_WIDTH = "windowwidth";
+  public static final String TOOL_WINDOW_HEIGHT = "windowheight";
   public static final String TOOL_SPLASH = "splash";
   public static final String TOOL_SPLASHFORMAT = TOOL_SPLASH + "type";
   public static final String TOOL_SPLASHTEXT = TOOL_SPLASH + "text";
@@ -117,10 +129,16 @@ public class Constants {
   public static final String TOOL_LINEITEM = "lineitem";
   public static final String TOOL_MENU = "menu";
   public static final String TOOL_MENUITEM = "menuitem";
-  public static final String TOOL_COURSETOOLAPP = "coursetoolapp";
+  public static final String TOOL_COURSETOOLAPP = "coursetoolapp";  // deprecated
   public static final String TOOL_COURSETOOL = "coursetool";
+  public static final String TOOL_GROUPTOOL = "grouptool";
+  public static final String TOOL_USERTOOL = "usertool";
+  public static final String TOOL_SYSTEMTOOL = "systemtool";
+  public static final String TOOL_MASHUP = "mashup";
   public static final String TOOL_MODULE = "mid";
   public static final String TOOL_COURSEID = "courseid";
+  public static final String TOOL_CONSUMER_GUID = "tc_guid";
+  public static final String TOOL_EMULATE_CORE = "emulatecore";
   public static final String TOOL_ENCRYPT_DATA = "encrypt_data";
   public static final String TOOL_ENCRYPT_KEY = "encrypt_salt";
   public static final String TOOL_ENCRYPT_EMAIL_RANDOM_NAME = "encrypt_email_random_name";
@@ -128,11 +146,13 @@ public class Constants {
 
 
 // Message types
+  public static final String MESSAGE_CONTENT_ITEM = "contentitem";
   public static final String MESSAGE_CONFIG = "config";
   public static final String MESSAGE_DASHBOARD = "dashboard";
 
   public static final String SERVICE_CLASS = "class";
   public static final String SERVICE_UNSIGNED = "unsigned";
+  public static final String SERVICE_SETTING = "setting";
 
 // Cache setting parameter names
   public static final String CACHE_AGE_PARAMETER = "cacheage";
@@ -151,6 +171,14 @@ public class Constants {
   public static final String ACTION_UNAVAILABLE = "unavailable";
   public static final String ACTION_TOOL = "tool";
   public static final String ACTION_NOTOOL = "notool";
+  public static final String ACTION_GROUPTOOL = "grouptool";
+  public static final String ACTION_NOGROUPTOOL = "nogrouptool";
+  public static final String ACTION_USERTOOL = "usertool";
+  public static final String ACTION_NOUSERTOOL = "nousertool";
+  public static final String ACTION_SYSTEMTOOL = "systemtool";
+  public static final String ACTION_NOSYSTEMTOOL = "nosystemtool";
+  public static final String ACTION_MASHUP = "domashup";
+  public static final String ACTION_NOMASHUP = "nomashup";
   public static final String ACTION_NOMENU = "nomenu";
   public static final String ACTION_SIGNED = "signed";
   public static final String ACTION_UNSIGNED = "unsigned";
@@ -182,13 +210,25 @@ public class Constants {
   public static final String DATA_STUDENTID = "S";
   public static final String DATA_PRIMARYKEY = "P";
   public static final String DATA_COURSEID = "C";
+  public static final String DATA_UUID = "U";
 
 // Open tool options
   public static final String DATA_FRAME = "F";
   public static final String DATA_WINDOW = "W";
   public static final String DATA_IFRAME = "I";
   public static final String DATA_FRAME_NO_BREADCRUMBS = "FNB";
+  public static final String DATA_POPUP = "P";
+  public static final String DATA_OVERLAY = "O";
   public static final String DATA_BLANK_WINDOW_NAME = "_blank";
+
+// Signature methods
+  public static final String DATA_SIGNATURE_METHOD_SHA1 = "SHA1";
+  public static final String DATA_SIGNATURE_METHOD_SHA256 = "SHA256";
+
+// Resource ID prefixes
+  public static final String PREFIX_GROUP = "G";
+  public static final String PREFIX_MODULE = "M";
+  public static final String PREFIX_USER_TOOL = "U";
 
 // Tool availability options
   public static final String AVAILABILITY_DEFAULT_ON = "DefaultOn";
@@ -204,6 +244,7 @@ public class Constants {
   public static final String ROLE_MENTOR = "Mentor";
   public static final String ROLE_ADMINISTRATOR = "Administrator";
   public static final String ROLE_SYSTEM_ADMINISTRATOR = "urn:lti:sysrole:ims/lis/Administrator";
+  public static final String ROLE_TRANSIENT = "urn:lti:role:ims/lti/Transient";
 
 // Role IDs
   public static final String ROLE_ID_INSTRUCTOR = "I";
@@ -288,9 +329,11 @@ public class Constants {
   public static final int SETTING_MAX_LENGTH = 2048;
   public static final String LOCALE_ATTRIBUTE = "browser.session.locale";
   public static final String DATE_FORMAT = "d-MMM-yyyy HH:mm";
+  public static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mmZ";
   public static final String GROUPS_PARAMETER_NAME = "groups";
   public static final String PAGE_PARAMETER_NAME = "lti_page";
   public static final String ADMIN_PAGE = "admin";
+  public static final String SYSTEM_PAGE = "system";
   public static final String COURSE_TOOLS_PAGE = "ctools";
   public static final String TOOLS_PAGE = "tools";
   public static final String CONTENT_PAGE = "content";
@@ -303,6 +346,9 @@ public class Constants {
   public static final String TAB_PARAMETER_NAME = "tab_tab_group_id";
   public static final String COURSE_TAB_PARAMETER_NAME = "cmp_tab_id";
   public static final String DEFAULT_POINTS_POSSIBLE = "100";
+  public static final String NODE_PARAMETER = "node";
+  public static final String INHERIT_SETTINGS = "inherit";
+  public static final String MIME_TYPE_LTI_LAUNCH_LINK = "application/vnd.ims.lti.v1.ltilink";
 
 // Names of content item menu areas
   public static final String MENU_COLLABORATE = "collaborate";
@@ -359,6 +405,20 @@ public class Constants {
        IMAGE_ALT_RESOURCE_PREFIX + COURSE_TOOL_PREFIX + TOOL_PARAMETER_PREFIX + "." + DATA_TRUE);
     put(COURSE_TOOL_PREFIX + TOOL_PARAMETER_PREFIX + "." + DATA_FALSE,
        IMAGE_ALT_RESOURCE_PREFIX + COURSE_TOOL_PREFIX + TOOL_PARAMETER_PREFIX + "." + DATA_FALSE);
+  }};
+
+  public static final List<String> IFRAME_MEDIA_TYPE = new ArrayList<String>() {{
+    add("video/avi");
+    add("video/example");
+    add("video/mpeg");
+    add("video/mp4");
+    add("video/ogg");
+    add("video/quicktime");
+    add("video/webm");
+    add("video/x-matroska");
+    add("video/x-ms-wmv");
+    add("video/x-flv");
+    add("application/x-shockwave-flash");
   }};
 
 }

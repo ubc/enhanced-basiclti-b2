@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2014  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -117,10 +117,10 @@ public class Setting extends Service {
     if (settings != null) {
       String indent = "";
       if (!simpleFormat) {
+        String endpoint = resource.getEndpoint();
         json.append("    {\n").append("      \"@type\":\"").append(type).append("\",\n");
-        json.append("      \"@id\":\"").append(resource.getEndpoint()).append("\",\n");
-        json.append("      \"custom\":");
-        json.append("{\n");
+        json.append("      \"@id\":\"").append(endpoint).append("\",\n");
+        json.append("      \"custom\":{\n");
         indent = "      ";
       }
       String setting;
