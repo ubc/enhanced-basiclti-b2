@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -91,12 +91,14 @@
   }
   String domainSettingPrefix = Constants.DOMAIN_PARAMETER_PREFIX + "." + domainId + ".";
   if (ok && submitForm) {
-    String name = Utils.urlToDomainName(domainName);
-    if (name.length() > 0) {
-      domainName = name;
-    } else {
-      ok = false;
-      messageResourceString = "page.system.domain.receipt.nameerror";
+    if (!Utils.isRegExp(domainName)) {
+      String name = Utils.urlToDomainName(domainName);
+      if (name.length() > 0) {
+        domainName = name;
+      } else {
+        ok = false;
+        messageResourceString = "page.system.domain.receipt.nameerror";
+      }
     }
   }
   if (submitForm) {

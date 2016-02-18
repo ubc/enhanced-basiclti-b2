@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -222,8 +222,9 @@ public class OscBasicLTICxComponent implements CxComponent {
       }
 
       GenericPackageEntry entry = exportControl.createNewEntry(this.getApplicationHandle());
+      FileOutputStream fs = null;
       try {
-        FileOutputStream fs = new FileOutputStream(entry.getResourceData());
+        fs = new FileOutputStream(entry.getResourceData());
         props.store(fs, "Exported using " + this.getApplicationHandle() +
            " (version " + this.getB2Context().getB2Version() + ")");
         fs.close();
@@ -231,6 +232,14 @@ public class OscBasicLTICxComponent implements CxComponent {
         exportControl.getLogger().logError(null, e);
       } catch (IOException e) {
         exportControl.getLogger().logError(null, e);
+      } finally {
+        try {
+          if (fs != null) {
+            fs.close();
+          }
+        } catch (IOException e) {
+          exportControl.getLogger().logError(null, e);
+        }
       }
 
       String msg = String.format(this.getB2Context().getResourceString("export.summary", "%d"), numItems);
@@ -251,12 +260,25 @@ public class OscBasicLTICxComponent implements CxComponent {
 
     importControl.getLogger().logInfo(String.format(this.getB2Context().getResourceString("import.start", "%s"), this.getName()));
     Properties props = new Properties();
+    FileInputStream fs = null;
     try {
-      FileInputStream fs = new FileInputStream(packageEntry.getResourceData());
-      props.load(fs);
-      fs.close();
-    } catch (IOException ex) {
-      importControl.getLogger().logError(null, ex);
+      try {
+        fs = new FileInputStream(packageEntry.getResourceData());
+        props.load(fs);
+        fs.close();
+      } catch (FileNotFoundException e) {
+        importControl.getLogger().logError(null, e);
+      } catch (IOException e) {
+        importControl.getLogger().logError(null, e);
+      }
+    } finally {
+      try {
+        if (fs != null) {
+          fs.close();
+        }
+      } catch (IOException e) {
+        importControl.getLogger().logError(null, e);
+      }
     }
     String sourceCourseId = props.getProperty("courseid", "");
     String schema = props.getProperty("schema", "");

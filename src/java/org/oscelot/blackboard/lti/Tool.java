@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 */
 package org.oscelot.blackboard.lti;
 
+import java.util.Iterator;
 import java.io.IOException;
 
 import org.apache.commons.httpclient.HttpClient;
@@ -27,6 +28,8 @@ import org.apache.commons.httpclient.methods.GetMethod;
 
 import blackboard.base.FormattedText;
 import blackboard.servlet.data.WysiwygText;
+
+import org.oscelot.blackboard.lti.services.Service;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
@@ -306,6 +309,12 @@ public class Tool {
   public String getDashboard() {
 
     return this.getToolSetting(Constants.MESSAGE_PARAMETER_PREFIX + "." + Constants.MESSAGE_DASHBOARD, Constants.DATA_FALSE);
+
+  }
+
+  public boolean getDoEmulateCore() {
+
+    return this.getToolSetting(Constants.TOOL_EMULATE_CORE, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
 
   }
 
@@ -953,22 +962,22 @@ public class Tool {
     StringBuilder messages = new StringBuilder();
     String message;
 
-    message = b2Context.getResourceString("message.launch");
-    messages.append("<span title=\"").append(b2Context.getResourceString("message.alt.launch")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
+    message = this.b2Context.getResourceString("message.launch");
+    messages.append("<span title=\"").append(this.b2Context.getResourceString("message.alt.launch")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
 
     if (this.getContentItem().equals(Constants.DATA_TRUE)) {
-      message = b2Context.getResourceString("message.contentitem");
-      messages.append("<span title=\"").append(b2Context.getResourceString("message.alt.contentitem")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
+      message = this.b2Context.getResourceString("message.contentitem");
+      messages.append("<span title=\"").append(this.b2Context.getResourceString("message.alt.contentitem")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
     }
 
     if (this.getConfig().equals(Constants.DATA_TRUE)) {
-      message = b2Context.getResourceString("message.configure");
-      messages.append("<span title=\"").append(b2Context.getResourceString("message.alt.configure")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
+      message = this.b2Context.getResourceString("message.configure");
+      messages.append("<span title=\"").append(this.b2Context.getResourceString("message.alt.configure")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
     }
 
     if (this.getDashboard().equals(Constants.DATA_TRUE)) {
-      message = b2Context.getResourceString("message.dashboard");
-      messages.append("<span title=\"").append(b2Context.getResourceString("message.alt.dashboard")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
+      message = this.b2Context.getResourceString("message.dashboard");
+      messages.append("<span title=\"").append(this.b2Context.getResourceString("message.alt.dashboard")).append("\">").append(message).append("</span>&nbsp;&nbsp;");
     }
 
     return messages.toString();
@@ -982,42 +991,56 @@ public class Tool {
 
     String value = this.getOutcomesService();
     if (this.b2Context.getSetting(Constants.TOOL_EXT_OUTCOMES, Constants.DATA_FALSE).equals(Constants.DATA_FALSE)) {
-      setting = b2Context.getResourceString("service.disabled");
+      setting = this.b2Context.getResourceString("service.disabled");
       value = "disabled";
     } else if (value.equals(Constants.DATA_NOTUSED)) {
       setting = "-";
     } else if (value.equals(Constants.DATA_MANDATORY)) {
-      setting = b2Context.getResourceString("service.outcomes");
+      setting = this.b2Context.getResourceString("service.outcomes");
     } else {
-      setting = b2Context.getResourceString("service.outcomes").toLowerCase();
+      setting = this.b2Context.getResourceString("service.outcomes").toLowerCase();
     }
-    extensions.append("<span title=\"").append(b2Context.getResourceString("extension.alt.outcomes." + value)).append("\">").append(setting).append("</span>&nbsp;&nbsp;");
+    extensions.append("<span title=\"").append(this.b2Context.getResourceString("extension.alt.outcomes." + value)).append("\">").append(setting).append("</span>&nbsp;&nbsp;");
 
     value = this.getMembershipsService();
     if (this.b2Context.getSetting(Constants.TOOL_EXT_MEMBERSHIPS, Constants.DATA_FALSE).equals(Constants.DATA_FALSE)) {
-      setting = b2Context.getResourceString("service.disabled");
+      setting = this.b2Context.getResourceString("service.disabled");
       value = "disabled";
     } else if (this.getMembershipsService().equals(Constants.DATA_NOTUSED)) {
       setting = "-";
     } else if (this.getMembershipsService().equals(Constants.DATA_MANDATORY)) {
-      setting = b2Context.getResourceString("service.memberships");
+      setting = this.b2Context.getResourceString("service.memberships");
     } else {
-      setting = b2Context.getResourceString("service.memberships").toLowerCase();
+      setting = this.b2Context.getResourceString("service.memberships").toLowerCase();
     }
-    extensions.append("<span title=\"").append(b2Context.getResourceString("extension.alt.memberships." + value)).append("\">").append(setting).append("</span>&nbsp;&nbsp;");
+    extensions.append("<span title=\"").append(this.b2Context.getResourceString("extension.alt.memberships." + value)).append("\">").append(setting).append("</span>&nbsp;&nbsp;");
 
     value = this.getSettingService();
     if (this.b2Context.getSetting(Constants.TOOL_EXT_SETTING, Constants.DATA_FALSE).equals(Constants.DATA_FALSE)) {
-      setting = b2Context.getResourceString("service.disabled");
+      setting = this.b2Context.getResourceString("service.disabled");
       value = "disabled";
     } else if (this.getSettingService().equals(Constants.DATA_NOTUSED)) {
       setting = "-";
     } else if (this.getSettingService().equals(Constants.DATA_MANDATORY)) {
-      setting = b2Context.getResourceString("service.setting");
+      setting = this.b2Context.getResourceString("service.setting");
     } else {
-      setting = b2Context.getResourceString("service.setting").toLowerCase();
+      setting = this.b2Context.getResourceString("service.setting").toLowerCase();
     }
-    extensions.append("<span title=\"").append(b2Context.getResourceString("extension.alt.setting." + value)).append("\">").append(setting).append("</span>");
+    extensions.append("<span title=\"").append(this.b2Context.getResourceString("extension.alt.setting." + value)).append("\">").append(setting).append("</span>");
+
+    if (this.isSystemTool) {
+      ServiceList serviceList = new ServiceList(this.b2Context, true);
+      Service service;
+      for (Iterator<Service> iter = serviceList.getList().iterator(); iter.hasNext();) {
+        service = iter.next();
+        if (service.getIsEnabled().equals(Constants.DATA_TRUE) &&
+            !ServiceList.STANDARD_SERVICES.containsKey(service.getClassName()) &&
+            this.b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + this.id + "." + Constants.SERVICE_PARAMETER_PREFIX + "." + service.getId(), Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
+          extensions.append("&nbsp;&nbsp;<span title=\"").append(this.b2Context.getResourceString("extension.alt.other")).append("\">+</span>");
+          break;
+        }
+      }
+    }
 
     return extensions.toString();
 

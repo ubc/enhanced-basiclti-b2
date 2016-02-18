@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2014  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -148,9 +148,6 @@ public class Controller extends HttpServlet {
       }
       toolId = data[3];
       ok = (courseId.length() > 0);
-      if (!ok) {
-        B2Context.log(true, "getServicesData - no courseId: " + param);
-      }
     }
     if (ok) {
       this.b2Context.setContext(Utils.initContext(courseId, contentId));
@@ -198,15 +195,12 @@ public class Controller extends HttpServlet {
     } catch (OAuthException e) {
       this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
       ok = false;
-      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     } catch (IOException e) {
       this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
       ok = false;
-      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     } catch (URISyntaxException e) {
       this.response.setCodeMinor(this.b2Context.getResourceString("ext.codeminor.signature"));
       ok = false;
-      B2Context.log(true, "checkSignature error for " + consumerKey + "/" + secret);
     }
 
     return ok;

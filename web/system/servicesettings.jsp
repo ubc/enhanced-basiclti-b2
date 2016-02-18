@@ -30,79 +30,60 @@
                 blackboard.platform.filesystem.MultipartRequest,
                 blackboard.platform.filesystem.FileSystemService,
                 blackboard.platform.filesystem.FileSystemServiceFactory,
+                blackboard.servlet.tags.ngui.datacollection.fields.SimpleInputTag,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.lti.services.Service,
                 org.oscelot.blackboard.lti.resources.Resource,
+                org.oscelot.blackboard.lti.resources.SettingDef,
                 org.oscelot.blackboard.lti.ServiceList,
                 org.oscelot.blackboard.lti.Constants"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
-<bbNG:genericPage title="${bundle['page.system.service.title']}" entitlement="system.admin.VIEW">
+<bbNG:genericPage title="${bundle['page.system.servicesettings.title']}" entitlement="system.admin.VIEW">
 <%
-  String formName = "page.system.service";
+  String formName = "page.system.servicesettings";
   Utils.checkForm(request, formName);
 
   B2Context b2Context = new B2Context(request);
   String query = Utils.getQuery(request);
   String cancelUrl = "services.jsp?" + query;
   String serviceId = b2Context.getRequestParameter(Constants.TOOL_ID, "");
-  String serviceName = b2Context.getRequestParameter(Constants.TOOL_NAME, "");
-  String className = b2Context.getRequestParameter(Constants.SERVICE_CLASS, "");
 
-  boolean ok = true;
-  boolean submitForm = request.getMethod().equalsIgnoreCase("POST");
-  boolean isNewService = (serviceId.length() <= 0);
-  String serviceSettingPrefix = Constants.SERVICE_PARAMETER_PREFIX + "." + serviceId + ".";
+  Service service = Service.getServiceFromClassName(b2Context, Service.getSettingValue(b2Context, serviceId, Constants.SERVICE_CLASS, ""));
 
-  String messageResourceString = null;
-  Map<String,String> params = new HashMap<String,String>();
-
-  params.put(Constants.TOOL_ID, serviceId);
-  params.put(Constants.TOOL_NAME, b2Context.getRequestParameter(Constants.TOOL_NAME, b2Context.getSetting(serviceSettingPrefix + Constants.TOOL_NAME, "")));
-  params.put(Constants.SERVICE_CLASS, b2Context.getRequestParameter(Constants.SERVICE_CLASS, ""));
-
-  if (submitForm) {
-    if (isNewService) {
-      Service service = Service.getServiceFromClassName(b2Context, className);
-      if (service == null) {
-        ok = false;
-        messageResourceString = "page.system.service.receipt.invalidclass";
-      } else {
-        serviceId = service.getId();
-        if (b2Context.getSetting(Constants.SERVICE_PARAMETER_PREFIX + "." + serviceId, "").length() > 0) {
-          ok = false;
-          messageResourceString = "page.system.service.receipt.existserror";
-        } else {
-          b2Context.setSetting(Constants.SERVICE_PARAMETER_PREFIX + "." + serviceId, Constants.DATA_FALSE);
-          serviceName = service.getName();
-          b2Context.setSetting(Constants.SERVICE_PARAMETER_PREFIX + "." + serviceId + "." + Constants.SERVICE_CLASS, className);
-          b2Context.persistSettings();
-        }
-      }
-    }
-    if (ok) {
-      b2Context.setSetting(Constants.SERVICE_PARAMETER_PREFIX + "." + serviceId + "." + Constants.TOOL_NAME, serviceName);
-      messageResourceString = "page.receipt.success";
-      cancelUrl = b2Context.setReceiptOptions(cancelUrl,
-         b2Context.getResourceString(messageResourceString), null);
-      response.sendRedirect(cancelUrl);
-      return;
-    }
+  List<SettingDef> settings = null;
+  if (service != null) {
+    settings = service.getSettings();
+  }
+  if ((settings == null) || settings.isEmpty()) {
+    cancelUrl = b2Context.setReceiptOptions(cancelUrl,
+       b2Context.getResourceString("page.system.servicesettings.receipt.nosettings"), null);
+    response.sendRedirect(cancelUrl);
+    return;
   }
 
-  if (messageResourceString != null) {
-    b2Context.setReceipt(b2Context.getResourceString(messageResourceString), !submitForm);
+  if (request.getMethod().equalsIgnoreCase("POST")) {
+    b2Context.setSaveEmptyValues(false);
+    SettingDef setting;
+    String value;
+    for (Iterator<SettingDef> iter = settings.iterator(); iter.hasNext();) {
+      setting = iter.next();
+      value = b2Context.getRequestParameter("setting" + setting.getName(), "");
+      service.setSetting(setting.getName(), value);
+    }
+    b2Context.persistSettings();
+    cancelUrl = b2Context.setReceiptOptions(cancelUrl,
+       b2Context.getResourceString("page.receipt.success"), null);
+    response.sendRedirect(cancelUrl);
+    return;
   }
 
   Map<String,String> resourceStrings = b2Context.getResourceStrings();
   pageContext.setAttribute("bundle", resourceStrings);
-  if (!isNewService) {
-     pageContext.setAttribute("titleSuffix", ": " + b2Context.getSetting(serviceSettingPrefix + Constants.TOOL_NAME));
-  }
+  pageContext.setAttribute("titleSuffix", ": " + service.getName());
 
   pageContext.setAttribute("query", query);
-  pageContext.setAttribute("params", params);
   pageContext.setAttribute("cancelUrl", cancelUrl);
 %>
   <bbNG:pageHeader instructions="${bundle['page.system.service.instructions']}">
@@ -113,21 +94,43 @@
     </bbNG:breadcrumbBar>
     <bbNG:pageTitleBar iconUrl="../images/lti.gif" showTitleBar="true" title="${bundle['page.system.service.title']}${titleSuffix}"/>
   </bbNG:pageHeader>
-  <bbNG:form action="service.jsp?${query}" name="serviceForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
+  <bbNG:form action="servicesettings.jsp?${query}" name="serviceSettingsForm" method="post" onsubmit="return validateForm();" isSecure="true" nonceId="<%=formName%>">
   <bbNG:dataCollection markUnsavedChanges="true" showSubmitButtons="true">
     <bbNG:step hideNumber="false" title="${bundle['page.system.service.step1.title']}" instructions="${bundle['page.system.service.step1.instructions']}">
+  <input type="hidden" name="<%=Constants.TOOL_ID%>" value="<%=serviceId%>" />
 <%
-  if (isNewService) {
+  SettingDef setting;
+  for (Iterator<SettingDef> iter = settings.iterator(); iter.hasNext();) {
+    setting = iter.next();
+    pageContext.setAttribute("settingName", "setting" + setting.getName());
+    pageContext.setAttribute("settingDescription", setting.getDescription());
+    pageContext.setAttribute("settingSize", setting.getSize());
+    pageContext.setAttribute("value", service.getSetting(setting.getName(), setting.getDefaultValue()));
 %>
-      <bbNG:dataElement isRequired="true" label="${bundle['page.system.service.step1.class.label']}">
-        <bbNG:textElement type="string" name="<%=Constants.SERVICE_CLASS%>" value="<%=params.get(Constants.SERVICE_CLASS)%>" size="100" helpText="${bundle['page.system.service.step1.class.instructions']}" minLength="1" />
-      </bbNG:dataElement>
+      <bbNG:dataElement isRequired="false" label="<%=setting.getTitle()%>">
 <%
-  } else {
+    if (setting.getType().equals(SimpleInputTag.Type.FLOAT)) {
 %>
-  <input type="hidden" name="<%=Constants.TOOL_ID%>" value="<%=params.get(Constants.TOOL_ID)%>" />
-      <bbNG:dataElement isRequired="true" label="${bundle['page.system.service.step1.name.label']}">
-        <bbNG:textElement type="string" name="<%=Constants.TOOL_NAME%>" value="<%=params.get(Constants.TOOL_NAME)%>" size="100" helpText="${bundle['page.system.service.step1.name.instructions']}" minLength="1" />
+        <bbNG:textElement type="float" name="${settingName}" value="${value}" size="${settingSize}" helpText="${settingDescription}" />
+<%
+    } else if (setting.getType().equals(SimpleInputTag.Type.INTEGER)) {
+%>
+        <bbNG:textElement type="integer" name="${settingName}" value="${value}" size="${settingSize}" helpText="${settingDescription}" />
+<%
+    } else if (setting.getType().equals(SimpleInputTag.Type.UNSIGNED_FLOAT)) {
+%>
+        <bbNG:textElement type="unsigned_float" name="${settingName}" value="${value}" size="${settingSize}" helpText="${settingDescription}" />
+<%
+    } else if (setting.getType().equals(SimpleInputTag.Type.UNSIGNED_INTEGER)) {
+%>
+        <bbNG:textElement type="unsigned_integer" name="${settingName}" value="${value}" size="${settingSize}" helpText="${settingDescription}" />
+<%
+    } else {
+%>
+        <bbNG:textElement type="string" name="${settingName}" value="${value}" size="${settingSize}" helpText="${settingDescription}" />
+<%
+    }
+%>
       </bbNG:dataElement>
 <%
   }

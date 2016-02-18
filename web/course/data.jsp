@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@
   params.put("contextidtype" + Constants.DATA_PRIMARYKEY, "false");
   params.put("contextidtype" + Constants.DATA_BATCHUID, "false");
   params.put("contextidtype" + Constants.DATA_COURSEID, "false");
-  if (B2Context.getIsVersion(9, 1, 14)) {
+  if (B2Context.getIsVersion(9, 1, 13)) {
     params.put("contextidtype" + Constants.DATA_UUID, "false");
   }
   params.put("contextidtype" + b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_CONTEXTIDTYPE, Constants.DATA_BATCHUID), "true");
@@ -128,7 +128,7 @@
   params.put("useridtype" + Constants.DATA_BATCHUID, "false");
   params.put("useridtype" + Constants.DATA_USERNAME, "false");
   params.put("useridtype" + Constants.DATA_STUDENTID, "false");
-  if (B2Context.getIsVersion(9, 1, 14)) {
+  if (B2Context.getIsVersion(9, 1, 13)) {
     params.put("useridtype" + Constants.DATA_UUID, "false");
   }
   params.put("useridtype" + b2Context.getSetting(false, true, toolSettingPrefix + Constants.TOOL_USERIDTYPE, Constants.DATA_PRIMARYKEY), "true");
@@ -167,7 +167,7 @@
           <bbNG:selectOptionElement isSelected="${params.contextidtypeB}" value="<%=Constants.DATA_BATCHUID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.batchuid']}" />
           <bbNG:selectOptionElement isSelected="${params.contextidtypeC}" value="<%=Constants.DATA_COURSEID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.courseid']}" />
 <%
-  if (B2Context.getIsVersion(9, 1, 14)) {
+  if (B2Context.getIsVersion(9, 1, 13)) {
 %>
           <bbNG:selectOptionElement isSelected="${params.contextidtypeU}" value="<%=Constants.DATA_UUID%>" optionLabel="${bundle['page.system.data.step2.contextidtype.uuid']}" />
 <%
@@ -199,7 +199,7 @@
           <bbNG:selectOptionElement isSelected="${params.useridtypeN}" value="<%=Constants.DATA_USERNAME%>" optionLabel="${bundle['page.system.data.step2.useridtype.username']}" />
           <bbNG:selectOptionElement isSelected="${params.useridtypeS}" value="<%=Constants.DATA_STUDENTID%>" optionLabel="${bundle['page.system.data.step2.useridtype.studentid']}" />
 <%
-  if (B2Context.getIsVersion(9, 1, 14)) {
+  if (B2Context.getIsVersion(9, 1, 13)) {
 %>
           <bbNG:selectOptionElement isSelected="${params.useridtypeU}" value="<%=Constants.DATA_UUID%>" optionLabel="${bundle['page.system.data.step2.useridtype.uuid']}" />
 <%

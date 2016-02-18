@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.net.MalformedURLException;
+
+import org.apache.commons.lang.StringEscapeUtils;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -313,7 +315,7 @@ public class Utils {
       userId = user.getId().toExternalString();
     } else if (userIdType.equals(Constants.DATA_STUDENTID)) {
       userId = user.getStudentId();
-    } else if (userIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 14)) {
+    } else if (userIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
       userId = user.getUuid();
     } else {
       userId = user.getBatchUid();
@@ -961,6 +963,7 @@ public class Utils {
     if (str != null ) {
       str = str.replaceAll("\\<.*?>","").trim();
     }
+    str = StringEscapeUtils.unescapeHtml(str);
 
     return str;
 
@@ -1119,37 +1122,43 @@ public class Utils {
   public static Tool urlToDomain(B2Context b2Context, String urlString) {
 
     Tool domain = null;
-    urlString = Utils.urlToDomainName(urlString);
-    if (urlString.length() > 0) {
+    String domainName = Utils.urlToDomainName(urlString);
+    if (domainName.length() > 0) {
       try {
-        if (urlString.indexOf("://") < 0) {
-          urlString = "http://" + urlString;
+        if (domainName.indexOf("://") < 0) {
+          domainName = "http://" + domainName;
         }
-        URL url = new URL(urlString);
+        URL url = new URL(domainName);
         String urlHost = url.getHost();
         String urlPath = url.getPath();
         String domainHost = "";
         String domainPath = "";
         ToolList domainList = new ToolList(b2Context, true, true);
         List<Tool> domains = domainList.getList();
+        Tool aDomain;
         for (Iterator<Tool> iter = domains.iterator(); iter.hasNext();) {
-          Tool tool = iter.next();
-          String[] name = tool.getName().split("/", 2);
-          if (urlHost.endsWith(name[0])) {
-            if ((name[0].length() > domainHost.length()) &&
-                ((name.length <= 1) || urlPath.startsWith("/" + name[1]))) {
-              domainHost = name[0];
-              if (name.length > 1) {
+          aDomain = iter.next();
+          if (!isRegExp(aDomain.getName())) {
+            String[] name = aDomain.getName().split("/", 2);
+            if (urlHost.endsWith(name[0])) {
+              if ((name[0].length() > domainHost.length()) &&
+                  ((name.length <= 1) || urlPath.startsWith("/" + name[1]))) {
+                domainHost = name[0];
+                if (name.length > 1) {
+                  domainPath = name[1];
+                } else {
+                  domainPath = "";
+                }
+                domain = aDomain;
+              } else if (name[0].equals(domainHost) && (name.length > 1) && urlPath.startsWith("/" + name[1]) &&
+                 (name[1].length() > domainPath.length())) {
                 domainPath = name[1];
-              } else {
-                domainPath = "";
+                domain = aDomain;
               }
-              domain = tool;
-            } else if (name[0].equals(domainHost) && (name.length > 1) && urlPath.startsWith("/" + name[1]) &&
-               (name[1].length() > domainPath.length())) {
-              domainPath = name[1];
-              domain = tool;
             }
+          } else if (urlString.matches(aDomain.getName())) {  // RegExp
+            domain = aDomain;
+            break;
           }
         }
       } catch (MalformedURLException e) {
@@ -1686,7 +1695,7 @@ public class Utils {
           course = courseLoader.loadById(courseId);
           if (contextIdType.equals(Constants.DATA_PRIMARYKEY)) {
             contextId = course.getId().toExternalString();
-          } else if (contextIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 14)) {
+          } else if (contextIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
             contextId = course.getUuid();
           } else {
             contextId = course.getBatchUid();
@@ -2044,6 +2053,15 @@ public class Utils {
     }
 
     return params;
+
+  }
+
+// ---------------------------------------------------
+// Check if a string represents a regular expression
+
+  public static boolean isRegExp(String exp) {
+
+    return exp.startsWith("^") && exp.endsWith("$");
 
   }
 

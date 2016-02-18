@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -58,6 +59,10 @@ import blackboard.platform.config.BbConfig;
 import blackboard.platform.config.ConfigurationServiceFactory;
 import blackboard.platform.context.Context;
 import blackboard.util.GeneralUtil;
+import blackboard.util.LocaleUtil;
+import blackboard.util.UrlUtil;
+import blackboard.platform.branding.BrandingUtil;
+import blackboard.platform.branding.PersonalStyleHelper;
 
 import blackboard.platform.institutionalhierarchy.service.Node;
 import blackboard.platform.institutionalhierarchy.service.NodeManagerFactory;
@@ -140,6 +145,7 @@ public class LtiMessage {
     String roles = "";
     boolean systemRolesOnly = !b2Context.getSetting(Constants.TOOL_COURSE_ROLES, Constants.DATA_FALSE).equals(Constants.DATA_TRUE);
     boolean sendAdminRole = this.tool.getSendAdministrator().equals(Constants.DATA_TRUE);
+    boolean emulateCore = this.tool.getDoEmulateCore();
     String contextId = "";
     String resourceId = "";
     if (this.course != null) {
@@ -153,7 +159,7 @@ public class LtiMessage {
         resourceId = this.course.getId().toExternalString();
       } else if (contextIdType.equals(Constants.DATA_COURSEID)) {
         resourceId = this.course.getCourseId();
-      } else if (contextIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 14)) {
+      } else if (contextIdType.equals(Constants.DATA_UUID) && B2Context.getIsVersion(9, 1, 13)) {
         resourceId = this.course.getUuid();
       } else {
         resourceId = this.course.getBatchUid();
@@ -359,14 +365,37 @@ public class LtiMessage {
 // Consumer
     String css = this.tool.getLaunchCSS();
     if (css.length() > 0) {
-      this.props.setProperty("ext_launch_presentation_css_url", css);
       this.props.setProperty("launch_presentation_css_url", css);
     }
 
-    String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
-    this.props.setProperty("ext_lms", Constants.LTI_LMS + "-" + version[0] + "." + version[1] + "." + version[2]);
-    this.props.setProperty("tool_consumer_info_product_family_code", Constants.LTI_LMS);
-    this.props.setProperty("tool_consumer_info_version", version[0] + "." + version[1] + "." + version[2]);
+    if (emulateCore) {
+      if (b2Context.getRequest() != null) {
+        List<String> cssUrls = BrandingUtil.getCssUrls(b2Context.getRequest(), this.user, this.course, null,
+           PersonalStyleHelper.isHighContrast(b2Context.getRequest()), !LocaleUtil.isLeftToRight());
+        if (cssUrls.size() > 0) {
+          StringBuilder cssUrl = new StringBuilder();
+          String url;
+          String sep = "";
+          for (Iterator<String> iter = cssUrls.iterator(); iter.hasNext();) {
+            url = iter.next();
+            cssUrl.append(sep).append(UrlUtil.calculateFullUrl(b2Context.getRequest(), url));
+            sep = ",";
+          }
+          this.props.setProperty("ext_launch_presentation_css_url", cssUrl.toString());
+        }
+      }
+      if (B2Context.getIsVersion(9, 1, 201510)) {
+        this.props.setProperty("ext_launch_id", UUID.randomUUID().toString());
+      }
+      this.props.setProperty("ext_lms", "bb-" + B2Context.getVersionNumber(""));
+      this.props.setProperty("tool_consumer_info_product_family_code", "Blackboard Learn");
+      this.props.setProperty("tool_consumer_info_version", B2Context.getVersionNumber(""));
+    } else {
+      String[] version = B2Context.getVersionNumber("?.?.?").split("\\.");
+      this.props.setProperty("ext_lms", Constants.LTI_LMS + "-" + version[0] + "." + version[1] + "." + version[2]);
+      this.props.setProperty("tool_consumer_info_product_family_code", Constants.LTI_LMS);
+      this.props.setProperty("tool_consumer_info_version", version[0] + "." + version[1] + "." + version[2]);
+    }
 
     String resource = this.tool.getResourceUrl();
     if (resource.length() > 0) {
@@ -381,6 +410,7 @@ public class LtiMessage {
     if ((locale == null) || (locale.length() <= 0)) {
       locale = (String)context.getAttribute(Constants.LOCALE_ATTRIBUTE);
     }
+    locale = locale.replaceAll("_", "-");
     this.props.setProperty("launch_presentation_locale", locale);
 
     if (b2Context.getSetting(Constants.TOOL_PARAMETER_PREFIX + "." + this.tool.getId() + "." + Constants.TOOL_CONSUMER_GUID, Constants.DATA_FALSE).equals(Constants.DATA_TRUE)) {
@@ -389,10 +419,14 @@ public class LtiMessage {
       this.props.setProperty("tool_consumer_instance_guid", this.tool.getLaunchGUID());
     }
     this.props.setProperty("tool_consumer_instance_name", b2Context.getSetting(Constants.CONSUMER_NAME_PARAMETER,
-       ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_NAME, "")));
+//       ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_NAME, "")));
+       GeneralUtil.getSystemInstanceName()));
     this.props.setProperty("tool_consumer_instance_description", b2Context.getSetting(Constants.CONSUMER_DESCRIPTION_PARAMETER,
        ConfigurationServiceFactory.getInstance().getBbProperty(BbConfig.INST_TYPE, "")));
     String email = b2Context.getSetting(Constants.CONSUMER_EMAIL_PARAMETER, "");
+    if (email.length() <= 0) {
+      email = GeneralUtil.getSystemAdminEmail();
+    }
     if (email.length() > 0) {
       this.props.setProperty("tool_consumer_instance_contact_email", email);
     }

@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -157,6 +157,7 @@
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CSS, b2Context.getRequestParameter(Constants.TOOL_CSS, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ICON, b2Context.getRequestParameter(Constants.TOOL_ICON, ""));
     b2Context.setSetting(toolSettingPrefix + Constants.TOOL_ICON_DISABLED, b2Context.getRequestParameter(Constants.TOOL_ICON_DISABLED, ""));
+    b2Context.setSetting(toolSettingPrefix + Constants.TOOL_EMULATE_CORE, b2Context.getRequestParameter(Constants.TOOL_EMULATE_CORE, Constants.DATA_FALSE));
     if (ok && isNewTool) {
       String defaultToolSettingPrefix = Constants.TOOL_PARAMETER_PREFIX + "." + Constants.DEFAULT_TOOL_ID + ".";
       b2Context.setSetting(toolSettingPrefix + Constants.TOOL_CONTEXT_ID,
@@ -231,6 +232,7 @@
       if (ok && (toolUrl.length() > 0)) {
         try {
           URL url = new URL(toolUrl);
+          messageResourceString = "page.receipt.success";
         } catch (MalformedURLException e) {
           ok = false;
           messageResourceString = "page.system.tool.receipt.invalidurl";
@@ -307,6 +309,7 @@
   params.put(Constants.TOOL_CSS, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_CSS));
   params.put(Constants.TOOL_ICON, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ICON));
   params.put(Constants.TOOL_ICON_DISABLED, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_ICON_DISABLED));
+  params.put(Constants.TOOL_EMULATE_CORE, b2Context.getSetting(toolSettingPrefix + Constants.TOOL_EMULATE_CORE));
 
   boolean tabSetting = !tabXml;
 
@@ -499,6 +502,9 @@
         </bbNG:dataElement>
         <bbNG:dataElement isRequired="false" label="${bundle['page.system.tool.step4.icondisabled.label']}">
           <bbNG:textElement type="string" name="<%=Constants.TOOL_ICON_DISABLED%>" value="<%=params.get(Constants.TOOL_ICON_DISABLED)%>" size="80" helpText="${bundle['page.system.tool.step4.icondisabled.instructions']}" />
+        </bbNG:dataElement>
+        <bbNG:dataElement isRequired="true" label="${bundle['page.system.tool.step4.emulatecore.label']}">
+          <bbNG:checkboxElement isSelected="${params.emulatecore}" name="<%=Constants.TOOL_EMULATE_CORE%>" value="true" helpText="${bundle['page.system.tool.step4.emulatecore.instructions']}" />
         </bbNG:dataElement>
       </bbNG:step>
     </bbNG:stepGroup>

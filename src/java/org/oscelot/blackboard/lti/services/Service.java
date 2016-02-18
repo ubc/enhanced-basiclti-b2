@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ import org.oscelot.blackboard.lti.Constants;
 import org.oscelot.blackboard.lti.ToolList;
 import org.oscelot.blackboard.lti.Utils;
 import org.oscelot.blackboard.lti.resources.Resource;
+import org.oscelot.blackboard.lti.resources.SettingDef;
 
 import com.spvsoftwareproducts.blackboard.utils.B2Context;
 
@@ -110,6 +111,21 @@ public abstract class Service {
 
   public abstract List<Resource> getResources();
 
+  public List<SettingDef> getSettings() {
+
+    List<SettingDef> settings = new ArrayList<SettingDef>();
+
+    getResources();
+    Resource resource;
+    for (Iterator<Resource> iter = this.resources.iterator(); iter.hasNext();) {
+      resource = iter.next();
+      settings.addAll(resource.getSettings());
+    }
+
+    return settings;
+
+  }
+
   public String getServicePath() {
 
     return this.b2Context.getServerUrl() + this.b2Context.getPath() + Constants.RESOURCE_PATH;
@@ -124,6 +140,20 @@ public abstract class Service {
     }
 
     return b2Context.getSetting(setting, defaultValue);
+
+  }
+
+  public String getSetting(String name, String defaultValue) {
+
+    return getSettingValue(this.b2Context, this.getId(),
+       Constants.SERVICE_SETTING + "." + name, defaultValue);
+
+  }
+
+  public void setSetting(String name, String value) {
+
+    String setting = Constants.SERVICE_PARAMETER_PREFIX + "." + this.getId();
+    this.b2Context.setSetting(setting + "." + Constants.SERVICE_SETTING + "." + name, value);
 
   }
 
@@ -260,4 +290,23 @@ public abstract class Service {
 
   }
 
+  @Override
+  public String toString() {
+
+    StringBuilder result = new StringBuilder();
+    String newLine = System.getProperty("line.separator");
+
+    result.append(this.getClass().getName());
+    result.append(" Object {");
+    result.append(newLine);
+
+    result.append("  Name: ").append(this.getName()).append(newLine);
+    result.append("  Class: ").append(this.getClassName()).append(newLine);
+    result.append("  Enabled: ").append(this.getIsEnabled()).append(newLine);
+    result.append("  Unsigned: ").append(this.getIsUnsigned()).append(newLine);
+    result.append("}");
+
+    return result.toString();
+
+  }
 }

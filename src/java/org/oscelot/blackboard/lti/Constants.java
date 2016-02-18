@@ -1,6 +1,6 @@
 /*
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -138,6 +138,7 @@ public class Constants {
   public static final String TOOL_MODULE = "mid";
   public static final String TOOL_COURSEID = "courseid";
   public static final String TOOL_CONSUMER_GUID = "tc_guid";
+  public static final String TOOL_EMULATE_CORE = "emulatecore";
 
 // Message types
   public static final String MESSAGE_CONTENT_ITEM = "contentitem";
@@ -146,6 +147,7 @@ public class Constants {
 
   public static final String SERVICE_CLASS = "class";
   public static final String SERVICE_UNSIGNED = "unsigned";
+  public static final String SERVICE_SETTING = "setting";
 
 // Cache setting parameter names
   public static final String CACHE_AGE_PARAMETER = "cacheage";

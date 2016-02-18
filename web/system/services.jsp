@@ -1,6 +1,6 @@
 <%--
     basiclti - Building Block to provide support for Basic LTI
-    Copyright (C) 2015  Stephen P Vickers
+    Copyright (C) 2016  Stephen P Vickers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,11 +22,13 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"
         import="java.util.List,
                 java.util.ArrayList,
+                java.util.Map,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Constants,
                 org.oscelot.blackboard.lti.Utils,
                 org.oscelot.blackboard.lti.ServiceList,
-                org.oscelot.blackboard.lti.services.Service"
+                org.oscelot.blackboard.lti.services.Service,
+                org.oscelot.blackboard.lti.resources.SettingDef"
         errorPage="../error.jsp"%>
 <%@taglib uri="/bbNG" prefix="bbNG"%>
 <bbNG:genericPage title="${bundle['page.system.services.title']}" entitlement="system.admin.VIEW">
@@ -142,7 +144,16 @@
       <bbNG:listElement isRowHeader="true" label="${bundle['page.system.tools.name.label']}" name="name">
         ${service.name}
 <%
-    if (!ServiceList.STANDARD_SERVICES.containsKey(service.getClassName())) {
+    pageContext.setAttribute("id", Constants.TOOL_ID + "=" + service.getId());
+    List<SettingDef> settings = service.getSettings();
+    if (ServiceList.STANDARD_SERVICES.containsKey(service.getClassName())) {
+%>
+        <bbNG:listContextMenu order="status,request">
+          <bbNG:contextMenuItem title="${statusTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
+          <bbNG:contextMenuItem title="${requestTitle}" url="JavaScript: doAction('${requestAction}');" id="request" />
+        </bbNG:listContextMenu>
+<%
+    } else if (settings.isEmpty()) {
 %>
         <bbNG:listContextMenu order="status,request,*separator*,delete">
           <bbNG:contextMenuItem title="${statusTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
@@ -152,9 +163,11 @@
 <%
     } else {
 %>
-        <bbNG:listContextMenu order="status,request">
+        <bbNG:listContextMenu order="status,request,*separator*,settings,*separator*,delete">
           <bbNG:contextMenuItem title="${statusTitle}" url="JavaScript: doAction('${statusAction}');" id="status" />
           <bbNG:contextMenuItem title="${requestTitle}" url="JavaScript: doAction('${requestAction}');" id="request" />
+          <bbNG:contextMenuItem title="${bundle['page.system.services.action.settings']}" url="servicesettings.jsp?${id}&${query}" id="settings" />
+          <bbNG:contextMenuItem title="${bundle['page.system.tools.action.delete']}" url="JavaScript: doDelete();" id="delete" />
         </bbNG:listContextMenu>
 <%
     }
