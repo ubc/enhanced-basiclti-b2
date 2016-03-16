@@ -30,6 +30,7 @@
                 blackboard.platform.persistence.PersistenceServiceFactory,
                 blackboard.persist.BbPersistenceManager,
                 blackboard.persist.Id,
+                blackboard.data.course.Course,
                 blackboard.data.content.Content,
                 blackboard.persist.content.ContentDbLoader,
                 blackboard.base.FormattedText,
@@ -91,6 +92,14 @@
   Id id = bbPm.generateId(Content.DATA_TYPE, contentId);
   Content content = contentLoader.loadById(id);
   Content parent = contentLoader.loadById(content.getParentId());
+
+  // checking if the course ID matches, added by compass
+  Id childId = bbPm.generateId(Course.DATA_TYPE, courseId);
+  if (!childId.equals(content.getCourseId())) {
+    throw new RuntimeException("Invalid course id or content id. Content Id " + contentId +
+            " doesn't not match corresponding course ID " + courseId);
+  }
+  // end
 
   String cancelUrl = b2Context.getNavigationItem("cp_content_quickedit").getHref();
   cancelUrl = cancelUrl.replace("@X@course.pk_string@X@", courseId);

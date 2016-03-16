@@ -38,6 +38,9 @@
                 blackboard.persist.content.ContentDbLoader,
                 blackboard.persist.content.ContentDbPersister,
                 blackboard.servlet.tags.ngui.datacollection.fields.TextboxTag,
+                blackboard.platform.security.SecurityUtil,
+                blackboard.platform.security.Entitlement,
+                blackboard.platform.security.authentication.BbSecurityException,
                 com.spvsoftwareproducts.blackboard.utils.B2Context,
                 org.oscelot.blackboard.lti.Gradebook,
                 org.oscelot.blackboard.lti.Constants,
@@ -74,6 +77,19 @@
   boolean xmlTab = byXML;
   boolean urlTab = allowLocal && !xmlTab && ((toolName.length() > 0) || (toolUrl.length() > 0));
   boolean nameTab = !urlTab && !xmlTab;
+
+  // checking if the course ID matches, added by compass
+  BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
+  ContentDbLoader contentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
+  Id childId = bbPm.generateId(Course.DATA_TYPE, courseId);
+  Id parentId = bbPm.generateId(Content.DATA_TYPE, contentId);
+  Content parent = contentLoader.loadById(parentId);
+
+  if (!childId.equals(parent.getCourseId())) {
+    throw new RuntimeException("Invalid course id or content id. Content Id " + contentId +
+            " doesn't not match corresponding course ID " + courseId);
+  }
+  // end
 
   String cancelUrl = b2Context.getNavigationItem("cp_content_quickedit").getHref();
   cancelUrl = cancelUrl.replace("@X@course.pk_string@X@", courseId);
@@ -171,19 +187,19 @@
 
   boolean isLesson = false;
   if (ok) {
-
-    BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
+    // the following commented lines are move to the top of the file
+//    BbPersistenceManager bbPm = PersistenceServiceFactory.getInstance().getDbPersistenceManager();
     ContentDbPersister persister = (ContentDbPersister)bbPm.getPersister(ContentDbPersister.TYPE);
-    ContentDbLoader contentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
+//    ContentDbLoader contentLoader = (ContentDbLoader)bbPm.getLoader(ContentDbLoader.TYPE);
 
     Content content = new Content();
-    Id childId = bbPm.generateId(Course.DATA_TYPE, courseId);
-    Id parentId = bbPm.generateId(Content.DATA_TYPE, contentId);
+//    Id childId = bbPm.generateId(Course.DATA_TYPE, courseId);
+//    Id parentId = bbPm.generateId(Content.DATA_TYPE, contentId);
     content.setCourseId(childId);
     content.setParentId(parentId);
     content.setRenderType(Content.RenderType.DEFAULT);
     content.setTitle(toolName);
-    Content parent = contentLoader.loadById(parentId);
+//    Content parent = contentLoader.loadById(parentId);
     if (parent.getIsLesson()) {
       isLesson = true;
       content.setContentHandler("resource/x-bb-document");
