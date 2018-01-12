@@ -45,7 +45,7 @@ public class UserWrapper extends User {
         return isEncrypt ? encryptor.encrypt(user.getId().getExternalString(), Encryption.DEFAULT_IV) : user.getId().getExternalString();
     }
 
-    public String getUsername() {
+    public String getUserName() {
         return isEncrypt ? encryptor.encrypt(user.getUserName(), Encryption.DEFAULT_IV) : user.getUserName();
     }
 
