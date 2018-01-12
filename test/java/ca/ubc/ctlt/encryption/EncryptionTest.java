@@ -39,7 +39,9 @@ public class EncryptionTest {
 
     @Test
     public void testConstructorWithKey() throws Exception {
-        Encryption encryptor = new Encryption("SecretKey");
+        Encryption encryptor = new Encryption("mOEAoXI8lUfClP5G1MHd");
+        System.out.println(encryptor.encrypt("798y43wnma05"));
+        System.out.println(encryptor.encrypt("798Y43WNMA05"));
 
         assertEquals(encryptor.decrypt(encryptor.encrypt("19803030")), "19803030");
     }

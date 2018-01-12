@@ -2,16 +2,18 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  
+
   config.vm.provider :virtualbox do |vb|
-    vb.customize ["modifyvm", :id, "--memory", "1024"]
-    vb.name = "bb-learn-9.1.201410.160373"
+    vb.customize ["modifyvm", :id, "--memory", "2048"]
   end
 
-  config.vm.box = 'bb-learn-9.1.201410.160373'  
-  config.vm.box_url = './bb-learn-9.1.201410.160373.box'
+  config.ssh.password = "vagrant"
+
+  config.vm.box = 'bb-learn-9.1.201510.1171702'
+  config.vm.box_url = './bb-learn-9.1.201510.1171702.box'
   config.vm.network :forwarded_port, guest: 8443, host: 9877
   config.vm.network :forwarded_port, guest: 2222, host: 9878
+  config.vm.network :forwarded_port, guest: 5432, host: 9879
 #  config.vm.network "public_network"
 
   config.vm.provision "shell",
